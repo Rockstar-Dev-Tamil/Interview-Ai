@@ -1,0 +1,23 @@
+# ABTALKS AI Interview Agent — Person 1
+# Requirements
+
+# Core
+langgraph>=1.2.0
+langchain-core>=1.4.0
+langchain-openai>=1.4.0
+
+# Testing
+pytest>=8.0.0
+httpx>=0.27.0
+
+# API Backend
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+
+# Optional but useful
+pydantic>=2.7.0
+python-dotenv>=1.0.0
+faiss-cpu>=1.7.0
+sentence-transformers>=3.0.0
+langchain-google-genai>=1.0.0
+deepeval>=1.0.0

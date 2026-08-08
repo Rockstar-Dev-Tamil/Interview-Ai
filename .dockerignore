@@ -1,0 +1,22 @@
+# Ignore virtual environments
+venv/
+env/
+.venv/
+
+# Ignore python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore local sqlite databases to prevent overwriting production DB if accidentally included, except initial templates if any
+*.db
+*.sqlite3
+
+# Ignore frontend node modules (since this dockerfile is for backend)
+frontend/
+node_modules/
+
+# OS generated
+.DS_Store
+Thumbs.db
