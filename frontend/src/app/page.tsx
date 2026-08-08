@@ -1,111 +1,154 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-
-interface CandidateProfile {
-  id: string;
-  name: string;
-  jobRole: string;
-  yearsExperience: number;
-}
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getCandidates } from "@/lib/api";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import CandidateProfileCard, { ExtendedCandidate } from "@/components/ui/CandidateProfileCard";
+import LoadingState from "@/components/ui/LoadingState";
+import ErrorState from "@/components/ui/ErrorState";
 
 export default function Home() {
   const router = useRouter();
-  const [candidates, setCandidates] = useState<CandidateProfile[]>([]);
-  const [selectedCandidateId, setSelectedCandidateId] = useState<string>('');
-  const [loading, setLoading] = useState(true);
+  const [candidates, setCandidates] = useState<ExtendedCandidate[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isStarting, setIsStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchCandidates() {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/candidates`);
-        if (res.ok) {
-          const data = await res.json();
-          setCandidates(data);
-          if (data.length > 0) {
-            setSelectedCandidateId(data[0].id);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch candidates", err);
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchCandidates();
   }, []);
 
-  const startInterview = () => {
-    if (!selectedCandidateId) return;
-    
-    const selectedCandidate = candidates.find(c => c.id === selectedCandidateId);
-    if (!selectedCandidate) return;
-
-    const sessionId = crypto.randomUUID();
-    localStorage.setItem('sessionId', sessionId);
-    localStorage.setItem('candidateId', selectedCandidate.id);
-    localStorage.setItem('candidateName', selectedCandidate.name);
-    
-    router.push('/interview');
+  const fetchCandidates = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await getCandidates();
+      setCandidates(data);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load candidates");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const selectedCandidate = candidates.find(c => c.id === selectedCandidateId);
+  const handleStart = () => {
+    if (candidates.length === 0) return;
+    
+    setIsStarting(true);
+    const selected = candidates[selectedIndex];
+    
+    // Store in localStorage as expected by the existing contract
+    const sessionId = crypto.randomUUID();
+    localStorage.setItem("sessionId", sessionId);
+    localStorage.setItem("candidateId", selected.id);
+    localStorage.setItem("candidateName", selected.name);
+    
+    router.push("/interview");
+  };
+
+  if (isLoading) {
+    return <LoadingState icon="loader" title="Loading candidates..." subtitle="Please wait while we fetch the profiles" />;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchCandidates} />;
+  }
+
+  const selectedCandidate = candidates[selectedIndex];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <div className="max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2 tracking-tight">ABTALKS AI</h1>
-          <h2 className="text-xl font-semibold text-gray-700 mb-1">Technical Interview Agent</h2>
-          <p className="text-sm text-gray-500">
-            Personalized technical interview based on your 31-day AI Engineering journey.
+    <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 relative min-h-full">
+      {/* Radial Gradient Background */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(139,92,246,0.08),transparent_60%)] pointer-events-none" />
+      
+      <div className="relative z-10 w-full max-w-3xl flex flex-col items-center text-center space-y-12 my-auto">
+        
+        {/* Header Section */}
+        <div className="space-y-4">
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-text">
+            Your AI Technical Interview<br />Partner
+          </h1>
+          <p className="text-lg text-text-secondary max-w-xl mx-auto">
+            A personalized interview based on your AI engineering journey.
           </p>
         </div>
-        
-        {loading ? (
-          <div className="text-center text-gray-500 py-8">Loading candidates...</div>
-        ) : (
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Select Candidate</label>
-              <select 
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-gray-50 text-base"
-                value={selectedCandidateId}
-                onChange={(e) => setSelectedCandidateId(e.target.value)}
-              >
-                {candidates.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-            
-            {selectedCandidate && (
-              <div className="bg-blue-50 rounded-lg p-5 border border-blue-100">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="col-span-1 text-sm font-medium text-blue-800">Name</div>
-                  <div className="col-span-2 text-sm text-gray-900 font-semibold">{selectedCandidate.name}</div>
-                  
-                  <div className="col-span-1 text-sm font-medium text-blue-800">Role</div>
-                  <div className="col-span-2 text-sm text-gray-900">{selectedCandidate.jobRole}</div>
-                  
-                  <div className="col-span-1 text-sm font-medium text-blue-800">Experience</div>
-                  <div className="col-span-2 text-sm text-gray-900">{selectedCandidate.yearsExperience} {selectedCandidate.yearsExperience === 1 ? 'year' : 'years'}</div>
-                </div>
-              </div>
-            )}
 
-            <div className="pt-4">
-              <button 
-                onClick={startInterview}
-                disabled={!selectedCandidateId}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-bold py-3 px-4 rounded-lg shadow-sm transition duration-150 ease-in-out"
-              >
-                Start Interview
-              </button>
+        {/* Profile Card Section */}
+        <div className="w-full flex items-center justify-center gap-4">
+          {candidates.length > 1 && (
+            <button 
+              onClick={() => setSelectedIndex((prev) => (prev > 0 ? prev - 1 : candidates.length - 1))}
+              className="p-2 rounded-full hover:bg-surface-2 text-text-tertiary hover:text-text transition-colors hidden sm:block"
+            >
+              <ChevronLeft size={24} />
+            </button>
+          )}
+          
+          {selectedCandidate && (
+            <div className="w-full max-w-md">
+              <CandidateProfileCard candidate={selectedCandidate} />
             </div>
+          )}
+
+          {candidates.length > 1 && (
+            <button 
+              onClick={() => setSelectedIndex((prev) => (prev < candidates.length - 1 ? prev + 1 : 0))}
+              className="p-2 rounded-full hover:bg-surface-2 text-text-tertiary hover:text-text transition-colors hidden sm:block"
+            >
+              <ChevronRight size={24} />
+            </button>
+          )}
+        </div>
+
+        {/* Mobile Navigation Controls */}
+        {candidates.length > 1 && (
+          <div className="flex items-center gap-4 sm:hidden">
+            <button 
+              onClick={() => setSelectedIndex((prev) => (prev > 0 ? prev - 1 : candidates.length - 1))}
+              className="p-2 rounded-full bg-surface border border-border text-text-secondary"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <span className="text-sm text-text-tertiary font-medium">
+              {selectedIndex + 1} of {candidates.length}
+            </span>
+            <button 
+              onClick={() => setSelectedIndex((prev) => (prev < candidates.length - 1 ? prev + 1 : 0))}
+              className="p-2 rounded-full bg-surface border border-border text-text-secondary"
+            >
+              <ChevronRight size={20} />
+            </button>
           </div>
         )}
+
+        {/* Action Section */}
+        <div className="flex flex-col items-center space-y-6 w-full">
+          <button
+            onClick={handleStart}
+            disabled={isStarting || !selectedCandidate}
+            className="group relative flex items-center justify-center gap-2 w-full max-w-xs bg-primary hover:bg-primary-hover text-white font-medium py-3 px-6 rounded-lg shadow-lg shadow-primary-glow transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isStarting ? (
+              <span>Starting...</span>
+            ) : (
+              <>
+                <span>Start Interview</span>
+                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+              </>
+            )}
+          </button>
+          
+          <div className="flex items-center gap-2 text-sm text-text-tertiary">
+            <span>Personalized</span>
+            <span>·</span>
+            <span>Adaptive</span>
+            <span>·</span>
+            <span>Technical</span>
+          </div>
+        </div>
       </div>
     </div>
   );

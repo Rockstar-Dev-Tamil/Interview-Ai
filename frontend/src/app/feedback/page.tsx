@@ -1,117 +1,143 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Feedback } from '@/lib/api';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { CheckCircle } from "lucide-react";
+import { motion } from "framer-motion";
+import { Feedback } from "@/lib/api";
+import StrengthCard from "@/components/ui/StrengthCard";
+import GapItem from "@/components/ui/GapItem";
+import NextStepItem from "@/components/ui/NextStepItem";
+import LoadingState from "@/components/ui/LoadingState";
 
 export default function FeedbackPage() {
   const router = useRouter();
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
   useEffect(() => {
-    const data = localStorage.getItem('feedback');
-    if (!data) {
-      router.push('/');
-      return;
-    }
-    
-    try {
-      setFeedback(JSON.parse(data));
-    } catch (e) {
-      router.push('/');
+    const stored = localStorage.getItem("feedback");
+    if (stored) {
+      try {
+        setFeedback(JSON.parse(stored));
+      } catch (e) {
+        console.error("Failed to parse feedback", e);
+        router.push("/");
+      }
+    } else {
+      router.push("/");
     }
   }, [router]);
 
+  const handleStartNew = () => {
+    localStorage.removeItem("sessionId");
+    localStorage.removeItem("feedback");
+    router.push("/");
+  };
+
   if (!feedback) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-500">Loading feedback...</div>
-      </div>
-    );
+    return <LoadingState icon="loader" title="Generating your report..." subtitle="Please wait while we finalize the evaluation" />;
   }
 
+  // Parse next steps into an array if it's a string with newlines or numbered lists
+  const nextStepsList = feedback.next
+    .split(/\n+/)
+    .filter((step) => step.trim().length > 0);
+
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <div className="flex-1 overflow-y-auto bg-bg p-6 md:p-12 lg:px-20 py-12">
+      <div className="max-w-5xl mx-auto flex flex-col space-y-16">
         
-        <div className="text-center">
-          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Interview Complete</h1>
-          <p className="mt-2 text-lg text-gray-500">Thank you for completing the technical interview.</p>
-        </div>
-
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-          <div className="px-4 py-5 sm:px-6 bg-blue-600">
-            <h3 className="text-lg leading-6 font-medium text-white flex items-center">
-              <svg className="w-6 h-6 text-white mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-              Overview
-            </h3>
+        {/* Hero Section */}
+        <motion.div 
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="space-y-4"
+        >
+          <div className="flex items-center gap-2">
+            <CheckCircle size={16} className="text-success" />
+            <span className="text-xs font-medium text-text-tertiary uppercase tracking-wider">
+              Interview Complete
+            </span>
           </div>
-          <div className="border-t border-gray-200 px-4 py-5 sm:p-6 bg-blue-50">
-            <p className="text-gray-800 text-lg">{feedback.summary}</p>
-          </div>
-        </div>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-text">
+            Your Technical Interview Report
+          </h1>
+          <p className="text-lg text-text-secondary max-w-2xl">
+            You completed your personalized AI engineering assessment.
+          </p>
+        </motion.div>
 
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg border-t-4 border-green-500">
-            <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 flex items-center">
-                <svg className="w-6 h-6 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                Strengths
-              </h3>
-            </div>
-            <ul className="divide-y divide-gray-200">
-              {feedback.strengths.map((item, idx) => (
-                <li key={idx} className="px-4 py-4 sm:px-6 flex items-start text-sm text-gray-700">
-                  <span className="text-green-500 mr-2 text-lg leading-none">&bull;</span>
-                  <span>{item}</span>
-                </li>
+        {/* Overview Card */}
+        <motion.div 
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="bg-surface border border-border rounded-xl p-6 md:p-8"
+        >
+          <h2 className="text-xs font-medium text-text-tertiary uppercase tracking-wider mb-4">
+            Overview
+          </h2>
+          <p className="text-text text-base leading-relaxed whitespace-pre-wrap">
+            {feedback.summary}
+          </p>
+        </motion.div>
+
+        {/* Strengths */}
+        {feedback.strengths && feedback.strengths.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-xs font-medium text-text-tertiary uppercase tracking-wider">
+              Strengths
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {feedback.strengths.map((s, i) => (
+                <StrengthCard key={i} strength={s} delay={0.2 + i * 0.1} />
               ))}
-            </ul>
-          </div>
-
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg border-t-4 border-yellow-500">
-            <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 flex items-center">
-                <svg className="w-6 h-6 text-yellow-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                Areas to Improve
-              </h3>
             </div>
-            <ul className="divide-y divide-gray-200">
-              {feedback.gaps.map((item, idx) => (
-                <li key={idx} className="px-4 py-4 sm:px-6 flex items-start text-sm text-gray-700">
-                  <span className="text-yellow-500 mr-2 text-lg leading-none">&bull;</span>
-                  <span>{item}</span>
-                </li>
+          </div>
+        )}
+
+        {/* Areas to Improve */}
+        {feedback.gaps && feedback.gaps.length > 0 && (
+          <div className="space-y-6">
+            <h2 className="text-xs font-medium text-text-tertiary uppercase tracking-wider">
+              Areas to Improve
+            </h2>
+            <div className="flex flex-col space-y-6">
+              {feedback.gaps.map((g, i) => (
+                <GapItem key={i} index={i + 1} gap={g} delay={0.4 + i * 0.1} />
               ))}
-            </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Next Steps */}
+        <div className="space-y-6">
+          <h2 className="text-xs font-medium text-text-tertiary uppercase tracking-wider">
+            Your Next Steps
+          </h2>
+          <div className="flex flex-col space-y-3">
+            {nextStepsList.map((step, i) => (
+              <NextStepItem key={i} index={i + 1} step={step} delay={0.6 + i * 0.1} />
+            ))}
           </div>
         </div>
 
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg border-t-4 border-purple-500">
-          <div className="px-4 py-5 sm:px-6 bg-gray-50 border-b border-gray-200">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 flex items-center">
-              <svg className="w-6 h-6 text-purple-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
-              Recommended Next Steps
-            </h3>
-          </div>
-          <div className="border-t border-gray-200 px-4 py-5 sm:p-6 text-gray-800 whitespace-pre-wrap">
-            {feedback.next}
-          </div>
-        </div>
-
-        <div className="text-center pt-8">
+        {/* Action Button */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 1 }}
+          className="pt-8 flex justify-center border-t border-border/50"
+        >
           <button
-            onClick={() => {
-              localStorage.removeItem('sessionId');
-              localStorage.removeItem('feedback');
-              router.push('/');
-            }}
-            className="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-gray-800 hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900"
+            onClick={handleStartNew}
+            className="bg-surface border border-border hover:border-border-hover text-text-secondary hover:text-text font-medium py-3 px-8 rounded-lg transition-colors shadow-sm"
           >
             Start New Interview
           </button>
-        </div>
-
+        </motion.div>
+        
       </div>
     </div>
   );

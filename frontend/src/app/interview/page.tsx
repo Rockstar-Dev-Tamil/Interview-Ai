@@ -1,172 +1,142 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { startInterview, sendAnswer } from '@/lib/api';
+import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { startInterview, sendAnswer } from "@/lib/api";
+import InterviewMessage from "@/components/ui/InterviewMessage";
+import InterviewInput from "@/components/ui/InterviewInput";
+import ThinkingIndicator from "@/components/ui/ThinkingIndicator";
+import ErrorState from "@/components/ui/ErrorState";
+import LoadingState from "@/components/ui/LoadingState";
 
-interface Message {
-  role: 'agent' | 'candidate';
-  text: string;
-}
+type Message = {
+  role: "ai" | "user";
+  content: string;
+  isProbe?: boolean;
+};
 
 export default function InterviewPage() {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [questionCount, setQuestionCount] = useState(0);
-  const [candidateName, setCandidateName] = useState('Candidate');
-  
+  const [questionCount, setQuestionCount] = useState(1);
+  const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
+  // Initialize session
   useEffect(() => {
     const init = async () => {
-      try {
-        const sessionId = localStorage.getItem('sessionId');
-        const candidateId = localStorage.getItem('candidateId');
-        const storedName = localStorage.getItem('candidateName');
-        
-        if (storedName) {
-          setCandidateName(storedName);
-        }
-        if (!sessionId || !candidateId || !storedName) {
-          router.push('/');
-          return;
-        }
+      const sessionId = localStorage.getItem("sessionId");
+      const candidateId = localStorage.getItem("candidateId");
+      const candidateName = localStorage.getItem("candidateName");
 
-        const res = await startInterview(sessionId, { id: candidateId, name: storedName });
-        setMessages([{ role: 'agent', text: res.reply }]);
-        setQuestionCount(1);
-        
-        if (res.done) {
-          localStorage.setItem('feedback', JSON.stringify(res.feedback));
-          router.push('/feedback');
-        }
-      } catch (err: any) {
-        setError(err.message || 'Failed to start interview');
-      } finally {
+      if (!sessionId || !candidateId || !candidateName) {
+        router.push("/");
+        return;
+      }
+
+      try {
+        const res = await startInterview(sessionId, { id: candidateId, name: candidateName });
+        setMessages([{ role: "ai", content: res.reply }]);
+        setLoading(false);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to start the interview. Please try again.");
         setLoading(false);
       }
     };
+
     init();
   }, [router]);
 
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!input.trim() || loading) return;
-    
-    const sessionId = localStorage.getItem('sessionId');
+  // Auto-scroll
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
+
+  const handleSend = async (messageText: string) => {
+    if (!messageText.trim() || loading) return;
+
+    const sessionId = localStorage.getItem("sessionId");
     if (!sessionId) return;
-    
-    const userMessage = input;
-    setInput('');
-    setMessages(prev => [...prev, { role: 'candidate', text: userMessage }]);
+
+    // Optimistically add user message
+    setMessages((prev) => [...prev, { role: "user", content: messageText }]);
     setLoading(true);
     setError(null);
-    
+    setInput(""); // Clear input on successful send trigger
+
     try {
-      const res = await sendAnswer(sessionId, userMessage);
-      setMessages(prev => [...prev, { role: 'agent', text: res.reply }]);
+      const res = await sendAnswer(sessionId, messageText);
       
-      if (!res.reply.includes("Take your time")) {
-         setQuestionCount(prev => prev + 1);
+      // Check if it's a probe (doesn't increment question count)
+      // The old logic used "Take your time" check, we can refine this or just assume 
+      // if it's a follow-up it might be a probe. For now we use the existing heuristic.
+      const isProbe = res.reply.includes("Take your time") || res.reply.includes("explain your approach");
+      if (!isProbe && !res.done) {
+        setQuestionCount((c) => c + 1);
       }
-      
+
+      setMessages((prev) => [...prev, { role: "ai", content: res.reply, isProbe }]);
+
       if (res.done) {
-        localStorage.setItem('feedback', JSON.stringify(res.feedback));
-        router.push('/feedback');
+        localStorage.setItem("feedback", JSON.stringify(res.feedback));
+        router.push("/feedback");
       }
-    } catch (err: any) {
-      setError(err.message || 'Error sending answer. Please try again.');
-      setInput(userMessage);
-      setMessages(prev => prev.slice(0, -1));
+    } catch (err) {
+      console.error(err);
+      setError("Failed to send your answer. Please try again.");
+      // Rollback optimistic message and restore input
+      setMessages((prev) => prev.slice(0, -1));
+      setInput(messageText);
     } finally {
       setLoading(false);
     }
   };
 
+  if (error && messages.length === 0) {
+    return <LoadingState icon="alert" title="Session Error" subtitle="Failed to start the session. Returning home..." />;
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-8 px-4">
-      <div className="w-full max-w-3xl bg-white shadow-xl rounded-xl overflow-hidden flex flex-col h-[85vh]">
-        
-        <div className="bg-slate-800 text-white p-4 flex justify-between items-center shrink-0">
-          <div>
-            <h2 className="font-bold text-lg">ABTALKS AI Interview Agent</h2>
-            <p className="text-slate-300 text-sm">Candidate: {candidateName}</p>
-          </div>
-          <div className="text-slate-300 text-sm bg-slate-700 px-3 py-1 rounded-full">
-            Question {questionCount} &middot; Adaptive Interview
-          </div>
+    <div className="flex-1 flex flex-col bg-bg">
+      {/* Header Area */}
+      <div className="sticky top-0 z-40 bg-bg/90 backdrop-blur-sm border-b border-border py-4 px-6 md:px-12 lg:px-20">
+        <div className="max-w-5xl mx-auto flex justify-between items-center">
+          <span className="text-xs font-medium text-text-tertiary uppercase tracking-wider">
+            Technical Interview
+          </span>
+          <span className="text-sm font-medium text-text-secondary">
+            Question {questionCount.toString().padStart(2, "0")}
+          </span>
         </div>
-        
-        {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-3 flex justify-between items-center shrink-0">
-            <div className="text-red-700 text-sm font-medium">{error}</div>
-            <button onClick={() => setError(null)} className="text-red-600 hover:text-red-800 text-sm font-semibold">Dismiss</button>
-          </div>
-        )}
-        
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50">
-          {messages.map((msg, idx) => (
-            <div key={idx} className={`flex ${msg.role === 'candidate' ? 'justify-end' : 'justify-start'}`}>
-              <div 
-                className={`max-w-[80%] p-4 rounded-2xl ${
-                  msg.role === 'candidate' 
-                  ? 'bg-blue-600 text-white rounded-br-none shadow-md' 
-                  : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm'
-                }`}
-              >
-                <div className="text-xs font-semibold mb-1 opacity-75">
-                  {msg.role === 'candidate' ? 'You' : 'AI Interviewer'}
-                </div>
-                <div className="whitespace-pre-wrap">{msg.text}</div>
-              </div>
-            </div>
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="flex-1 overflow-y-auto px-6 md:px-12 lg:px-20 py-8">
+        <div className="max-w-5xl mx-auto flex flex-col space-y-12">
+          {messages.map((m, i) => (
+            <InterviewMessage key={i} role={m.role} content={m.content} isProbe={m.isProbe} />
           ))}
-          {loading && (
-            <div className="flex justify-start">
-              <div className="bg-white border border-gray-200 p-4 rounded-2xl rounded-bl-none shadow-sm flex space-x-2 items-center h-12">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-              </div>
+          
+          {loading && <ThinkingIndicator />}
+          
+          {error && messages.length > 0 && (
+            <div className="mt-8">
+              <ErrorState onRetry={() => handleSend(input)} />
             </div>
           )}
-          <div ref={messagesEndRef} />
+          
+          <div ref={messagesEndRef} className="h-4" />
         </div>
-        
-        <div className="p-4 bg-white border-t border-gray-200 shrink-0">
-          <form onSubmit={handleSubmit} className="relative">
-            <textarea
-              className="w-full border border-gray-300 rounded-lg pl-4 pr-24 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none bg-gray-50 text-gray-900"
-              rows={3}
-              placeholder="Type your answer here... (Press Enter to submit, Shift+Enter for newline)"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              disabled={loading}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmit();
-                }
-              }}
-            />
-            <button 
-              type="submit"
-              disabled={loading || !input.trim()}
-              className="absolute right-3 bottom-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-md transition duration-150"
-            >
-              Submit
-            </button>
-          </form>
+      </div>
+
+      {/* Input Area */}
+      <div className="shrink-0 bg-bg border-t border-border p-6 md:px-12 lg:px-20 pb-8 md:pb-12">
+        <div className="max-w-5xl mx-auto">
+          <InterviewInput onSend={handleSend} disabled={loading} initialValue={input} />
         </div>
-        
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
 export interface Candidate {
   id: string;
   name: string;
+  jobRole?: string;
+  yearsExperience?: number;
 }
 
 export interface Feedback {
@@ -17,6 +19,14 @@ export interface InterviewResponse {
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+export async function getCandidates(): Promise<Candidate[]> {
+  const response = await fetch(`${API_BASE_URL}/api/candidates`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch candidates');
+  }
+  return response.json();
+}
 
 export async function startInterview(sessionId: string, candidate: Candidate): Promise<InterviewResponse> {
   const response = await fetch(`${API_BASE_URL}/api/interview`, {
