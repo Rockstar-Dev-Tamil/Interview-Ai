@@ -32,15 +32,17 @@ Generate enriched interview metadata based on the schema.
 ```text
 You are evaluating a candidate's answer to the following technical question.
 Question: {question}
+Expected Concepts: {concepts}
 Candidate's Answer: {answer}
 Evaluate the technical depth, correctness, and completeness of the answer.
 ```
 
 **Structured Output Schema (Pydantic):**
-- `score` (Float 0.0 to 1.0)
-- `strengths` (List of Strings)
-- `weaknesses` (List of Strings)
-- `recommendation` (String)
+- `quality` (Float 0.0 to 1.0)
+- `matched_concepts` (List of Strings)
+- `missing_concepts` (List of Strings)
+- `rationale` (String)
+- `recommended_action` (String)
 
 ---
 
