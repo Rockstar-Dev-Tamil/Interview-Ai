@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { User } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export default function Header() {
   const [candidateName, setCandidateName] = useState<string | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     // Only access localStorage on the client
@@ -13,6 +15,10 @@ export default function Header() {
   }, []);
 
   const getInitial = (name: string) => name.charAt(0).toUpperCase();
+
+  if (pathname === "/interview") {
+    return null;
+  }
 
   return (
     <header className="sticky top-0 z-50 h-16 border-b border-border bg-bg/80 backdrop-blur-md">
@@ -26,7 +32,7 @@ export default function Header() {
               <div className="hidden md:block text-sm text-text-secondary">
                 {candidateName}
               </div>
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-sm font-semibold shrink-0">
+              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-bg text-sm font-semibold shrink-0">
                 {getInitial(candidateName)}
               </div>
             </>

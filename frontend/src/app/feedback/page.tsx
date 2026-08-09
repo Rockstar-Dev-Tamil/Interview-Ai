@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Download } from "lucide-react";
 import { motion } from "framer-motion";
 import { Feedback } from "@/lib/api";
 import StrengthCard from "@/components/ui/StrengthCard";
@@ -34,6 +34,10 @@ export default function FeedbackPage() {
     router.push("/");
   };
 
+  const handleDownloadPdf = () => {
+    window.print();
+  };
+
   if (!feedback) {
     return <LoadingState icon="loader" title="Generating your report..." subtitle="Please wait while we finalize the evaluation" />;
   }
@@ -44,8 +48,8 @@ export default function FeedbackPage() {
     .filter((step) => step.trim().length > 0);
 
   return (
-    <div className="flex-1 overflow-y-auto bg-bg p-6 md:p-12 lg:px-20 py-12">
-      <div className="max-w-5xl mx-auto flex flex-col space-y-16">
+    <div id="feedback-content" className="flex-1 overflow-y-auto bg-bg p-6 md:p-12 lg:px-20 py-12 print:p-0 print:m-0 print:h-screen print:w-screen print:overflow-hidden">
+      <div className="max-w-5xl mx-auto flex flex-col space-y-16 print:scale-[0.55] print:origin-top-left print:space-y-8">
         
         {/* Hero Section */}
         <motion.div 
@@ -123,13 +127,21 @@ export default function FeedbackPage() {
           </div>
         </div>
 
-        {/* Action Button */}
+        {/* Action Buttons */}
         <motion.div 
+          id="action-buttons"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 1 }}
-          className="pt-8 flex justify-center border-t border-border/50"
+          className="pt-8 flex justify-center gap-4 border-t border-border/50 print:hidden"
         >
+          <button
+            onClick={handleDownloadPdf}
+            className="bg-primary text-primary-foreground hover:opacity-90 font-medium py-3 px-8 rounded-lg transition-colors shadow-sm flex items-center gap-2"
+          >
+            <Download size={18} />
+            Download PDF
+          </button>
           <button
             onClick={handleStartNew}
             className="bg-surface border border-border hover:border-border-hover text-text-secondary hover:text-text font-medium py-3 px-8 rounded-lg transition-colors shadow-sm"

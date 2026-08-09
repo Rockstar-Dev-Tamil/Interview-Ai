@@ -220,7 +220,7 @@ def retrieve_question(state: Dict[str, Any]) -> Dict[str, Any]:
     with open(FAISS_INDEX_PATH + ".meta", "r") as f:
         meta = json.load(f)
         
-    D, I = index.search(query_emb, k=5)
+    D, I = index.search(query_emb, k=30)
     for idx in I[0]:
         day = meta[idx]["day"]
         if day not in covered_days:

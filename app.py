@@ -44,11 +44,17 @@ async def get_candidates():
         profiles = []
         for cand in data.get("candidates", []):
             member = cand.get("member", {})
+            missions = cand.get("missions", [])
+            skills = [m["title"] for m in missions if m.get("passed")][:4]
+            if not skills:
+                skills = ["Python", "FastAPI"]
+            
             profiles.append(CandidateProfileResponse(
                 id=member.get("id", ""),
                 name=member.get("name", ""),
                 jobRole=member.get("jobRole", ""),
-                yearsExperience=member.get("yearsExperience", 0)
+                yearsExperience=member.get("yearsExperience", 0),
+                skills=skills
             ))
         return profiles
     except Exception as e:
@@ -126,6 +132,63 @@ async def interview_turn(request: InterviewRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An internal server error occurred while processing your request."
         )
+
+from schemas import InterruptRequest, InterruptResponse
+from person1.pipeline_adapter import get_pipeline
+
+@app.post("/api/interrupt", response_model=InterruptResponse)
+async def check_interruption(request: InterruptRequest):
+    try:
+        session_id = request.sessionId
+        partial_answer = request.partialAnswer
+        
+        state = get_session(session_id)
+        if state is None:
+            return InterruptResponse(interrupt=False)
+            
+        # Basic heuristic: if the answer is getting too long without substance, or includes certain phrases
+        # Here we do a lightweight LLM call to decide if we should interrupt.
+        pipeline = get_pipeline()
+        
+        if not hasattr(pipeline, '_call_llm'):
+            # Heuristic fallback for MockPipeline
+            words = partial_answer.lower().split()
+            word_count = len(words)
+            if word_count > 40:
+                return InterruptResponse(interrupt=True, reply="Hold on, let's keep it concise. What is the core idea?")
+            
+            weak_phrases = ["not sure", "i don't know", "maybe", "i guess", "so yeah", "like", "um", "uh", "stuff", "things"]
+            weak_count = sum(1 for phrase in weak_phrases if phrase in partial_answer.lower())
+            
+            if word_count >= 10 and weak_count >= 2:
+                 return InterruptResponse(interrupt=True, reply="Wait, let me stop you there. Can you be more specific?")
+                 
+            return InterruptResponse(interrupt=False)
+        
+        system_prompt = (
+            "You are a strict technical interviewer. The candidate is currently typing their answer to the following question:\n"
+            f"Question: {state.get('current_question', {}).get('question_text', 'Unknown')}\n\n"
+            "Here is what they have typed so far:\n"
+            f"\"{partial_answer}\"\n\n"
+            "If the candidate is rambling, being extremely vague, or dodging the question, you should interrupt them. "
+            "Reply with 'INTERRUPT: <your interruption message>' if you want to interrupt. "
+            "Reply with 'CONTINUE' if they should keep going."
+        )
+        
+        response = pipeline._call_llm([
+            {"role": "system", "content": system_prompt}
+        ], temperature=0.3)
+        
+        response_text = response.content.strip()
+        if response_text.startswith("INTERRUPT:"):
+            msg = response_text.replace("INTERRUPT:", "").strip()
+            return InterruptResponse(interrupt=True, reply=msg)
+            
+        return InterruptResponse(interrupt=False)
+        
+    except Exception as e:
+        logger.error(f"Error in interrupt check: {e}", exc_info=True)
+        return InterruptResponse(interrupt=False)
 
 if __name__ == "__main__":
     import uvicorn

@@ -6,6 +6,7 @@ class CandidateProfileResponse(BaseModel):
     name: str = Field(..., description="Candidate Name")
     jobRole: str = Field(..., description="Candidate Job Role")
     yearsExperience: int = Field(..., description="Candidate Years of Experience")
+    skills: List[str] = Field(default_factory=list, description="Candidate's top skills")
 
 
 class CandidateModel(BaseModel):
@@ -30,3 +31,11 @@ class InterviewResponse(BaseModel):
     reply: str = Field(..., description="Interviewer's next message")
     done: bool = Field(..., description="True if the interview is complete")
     feedback: Optional[FeedbackModel] = Field(None, description="Final feedback, populated when done=True")
+
+class InterruptRequest(BaseModel):
+    sessionId: str = Field(..., description="Unique session identifier")
+    partialAnswer: str = Field(..., description="Candidate's partial answer text")
+
+class InterruptResponse(BaseModel):
+    interrupt: bool = Field(..., description="True if the AI should interrupt")
+    reply: Optional[str] = Field(None, description="The interruption message")

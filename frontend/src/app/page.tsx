@@ -45,8 +45,9 @@ export default function Home() {
     localStorage.setItem("sessionId", sessionId);
     localStorage.setItem("candidateId", selected.id);
     localStorage.setItem("candidateName", selected.name);
+    localStorage.setItem("candidateSkills", JSON.stringify(selected.skills || []));
     
-    router.push("/interview");
+    router.push("/instructions");
   };
 
   if (isLoading) {

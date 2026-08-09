@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudySprint - Neural Focus</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;800&display=swap"
+        rel="stylesheet">
+
+    <!-- TensorFlow.js & Coco-SSD -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+
+    <style>
+        :root {
+            --bg-grad: radial-gradient(circle at 50% 10%, #1a1a2e, #0e0e0e 90%);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #e0e0e0;
+            --text-muted: #888;
+
+            /* NEON PALETTE */
+            --cyan: #00f3ff;
+            --cyan-glow: rgba(0, 243, 255, 0.4);
+            --purple: #bc13fe;
+            --purple-glow: rgba(188, 19, 254, 0.4);
+            --red: #ff2a2a;
+            --red-glow: rgba(255, 42, 42, 0.5);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            text-align: center;
+            background: var(--bg-grad);
+            background-attachment: fixed;
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        /* HEADER */
+        header {
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        h1 {
+            font-weight: 800;
+            font-size: 2.5rem;
+            margin: 0;
+            background: linear-gradient(135deg, white, var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px var(--cyan-glow);
+        }
+
+        h3 {
+            color: var(--cyan);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 5px;
+            opacity: 0.8;
+        }
+
+        /* GLASS CARDS */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-panel::before {
+            /* Top highlight shine */
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        }
+
+        /* TIMER STYLING */
+        #timer {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 5rem;
+            font-weight: 800;
+            margin: 20px 0;
+            color: white;
+            text-shadow: 0 0 25px var(--cyan-glow);
+            letter-spacing: -2px;
+            line-height: 1;
+        }
+
+        .timer-active {
+            animation: breathe 4s infinite ease-in-out;
+        }
+
+        @keyframes breathe {
+
+            0%,
+            100% {
+                text-shadow: 0 0 25px var(--cyan-glow);
+            }
+
+            50% {
+                text-shadow: 0 0 40px var(--cyan-glow), 0 0 10px var(--purple);
+            }
+        }
+
+        .timer-penalty {
+            color: var(--red) !important;
+            text-shadow: 0 0 30px var(--red-glow) !important;
+            animation: glitch 0.3s infinite !important;
+        }
+
+        @keyframes glitch {
+            0% {
+                transform: translate(0);
+            }
+
+            20% {
+                transform: translate(-2px, 2px);
+            }
+
+            40% {
+                transform: translate(-2px, -2px);
+            }
+
+            60% {
+                transform: translate(2px, 2px);
+            }
+
+            80% {
+                transform: translate(2px, -2px);
+            }
+
+            100% {
+                transform: translate(0);
+            }
+        }
+
+        /* CONTROLS */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 800;
+            text-transform: uppercase;
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            position: relative;
+            z-index: 10;
+        }
+
+        button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
+        .btn-start,
+        .btn-resume {
+            background: var(--cyan);
+            color: #000;
+            box-shadow: 0 0 15px var(--cyan-glow);
+        }
+
+        .btn-start:hover {
+            box-shadow: 0 0 25px var(--cyan);
+            transform: translateY(-2px);
+        }
+
+        .btn-pause {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--glass-border);
+            color: white;
+        }
+
+        .btn-pause:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-finish {
+            background: var(--purple);
+            color: white;
+            box-shadow: 0 0 15px var(--purple-glow);
+        }
+
+        .btn-reset {
+            background: transparent;
+            border: 1px solid var(--glass-border);
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            padding: 8px 16px;
+            margin: 40px auto;
+        }
+
+        .btn-dev {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            color: #00ff00;
+            font-size: 0.7rem;
+            padding: 5px 10px;
+            margin-top: 10px;
+        }
+
+        .btn-dev:hover {
+            background: rgba(0, 255, 0, 0.2);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+        }
+
+        .btn-reset:hover {
+            color: var(--red);
+            border-color: var(--red);
+        }
+
+        /* HUD CAMERA BOX */
+        .camera-wrapper {
+            width: 320px;
+            height: 240px;
+            margin: 0 auto 20px;
+            position: relative;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #333;
+            display: none;
+            /* Hidden until on */
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .camera-wrapper.active {
+            display: block;
+        }
+
+        /* HUD CORNERS */
+        .camera-wrapper::after {
+            content: '';
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            border: 2px solid transparent;
+            /* Corner logic using clip-path or gradients is complex, simple border for now */
+            background:
+                linear-gradient(to right, var(--cyan) 2px, transparent 2px) 0 0,
+                linear-gradient(to bottom, var(--cyan) 2px, transparent 2px) 0 0,
+                linear-gradient(to left, var(--cyan) 2px, transparent 2px) 100% 0,
+                linear-gradient(to bottom, var(--cyan) 2px, transparent 2px) 100% 0,
+                linear-gradient(to right, var(--cyan) 2px, transparent 2px) 0 100%,
+                linear-gradient(to top, var(--cyan) 2px, transparent 2px) 0 100%,
+                linear-gradient(to left, var(--cyan) 2px, transparent 2px) 100% 100%,
+                linear-gradient(to top, var(--cyan) 2px, transparent 2px) 100% 100%;
+            background-repeat: no-repeat;
+            background-size: 20px 20px;
+            pointer-events: none;
+            opacity: 0.7;
+            z-index: 5;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
+        #ai-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1);
+            z-index: 2;
+        }
+
+        .hud-status {
+            position: absolute;
+            bottom: 15px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            z-index: 6;
+        }
+
+        .tag {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid var(--cyan);
+            color: var(--cyan);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            box-shadow: 0 0 10px var(--cyan-glow);
+        }
+
+        .hud-alert .tag {
+            border-color: var(--red);
+            color: var(--red);
+            box-shadow: 0 0 10px var(--red-glow);
+        }
+
+        .camera-wrapper.alert-mode {
+            box-shadow: 0 0 50px var(--red-glow);
+            border-color: var(--red);
+        }
+
+
+        /* STATS GRID */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .stat-box h4 {
+            margin: 0 0 5px;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .stat-box p {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        #score {
+            font-size: 1rem;
+            color: var(--cyan);
+            margin-top: 15px;
+            font-style: italic;
+        }
+
+        /* DEBUG */
+        .debug-panel {
+            margin-top: 30px;
+            border-top: 1px solid #333;
+            padding-top: 20px;
+            opacity: 0.4;
+            transition: opacity 0.2s;
+        }
+
+        .debug-panel:hover {
+            opacity: 1;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <header>
+            <h1>StudySprint</h1>
+            <h3>Neural Focus Engine</h3>
+        </header>
+
+        <div class="glass-panel">
+            <div id="status-indicator"
+                style="color: var(--text-muted); font-size: 0.9rem; letter-spacing: 1px; margin-bottom: 20px;">
+                SYSTEM INITIALIZING...
+            </div>
+
+            <!-- HUD -->
+            <div id="camera-box" class="camera-wrapper">
+                <video id="webcam" autoplay playsinline muted></video>
+                <canvas id="ai-overlay"></canvas>
+                <div class="hud-status">
+                    <span id="cam-tag" class="tag">OFFLINE</span>
+                </div>
+            </div>
+
+            <!-- TIMER -->
+            <div id="timer">00:00:00</div>
+
+            <!-- CONTROLS -->
+            <div class="controls">
+                <button id="btn-start" class="btn-start" onclick="FocusApp.start()" disabled>Wait...</button>
+                <button id="btn-pause" class="btn-pause hidden" onclick="FocusApp.pause()">Pause</button>
+                <button id="btn-resume" class="btn-resume hidden" onclick="FocusApp.resume()">Resume</button>
+                <button id="btn-finish" class="btn-finish hidden" onclick="FocusApp.finish()">Finish</button>
+            </div>
+        </div>
+
+        <!-- STATS -->
+        <div class="glass-panel">
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <h4>Focus Time</h4>
+                    <p id="totalTime">0m</p>
+                </div>
+                <div class="stat-box">
+                    <h4>Sessions</h4>
+                    <p id="sessions">0</p>
+                </div>
+                <div class="stat-box">
+                    <h4>Streak</h4>
+                    <p id="streak">0</p>
+                </div>
+            </div>
+            <p id="score">Start a session to initialize metrics.</p>
+        </div>
+
+        <!-- DEBUG -->
+        <div class="debug-panel">
+            <input type="number" id="test-seconds" placeholder="Secs"
+                style="background:#222; border:none; color:white; padding:5px; border-radius:4px;">
+            <button class="btn-reset" style="margin:0; padding:5px 10px;"
+                onclick="FocusApp.setTimerFromInput()">SET</button>
+            <button class="btn-reset" style="margin:0; padding:5px 10px;" onclick="FocusApp.hardReset()">WIPE
+                DATA</button>
+            <button class="btn-dev" style="margin:0; padding:5px 10px;"
+                onclick="FocusApp.devAddStreak()">+STREAK</button>
+        </div>
+    </div>
+
+    <!-- MAIN LOGIC (Preserved) -->
+    <script>
+        const FocusApp = (function () {
+            // --- State Management ---
+            let state = {
+                sessionSeconds: 0,
+                isTimerRunning: false,
+                timerId: null,
+                totalMinutesToday: 0,
+                sessionCount: 0,
+                lastActiveDate: null,
+                currentStreak: 0,
+                // AI
+                aiModel: null,
+                stream: null,
+                aiCheckId: null,
+                isVideoReady: false,
+                isUserPresent: true
+            };
+
+            let audioCtx = null;
+
+            // --- DOM Elements ---
+            const elements = {
+                timer: document.getElementById('timer'),
+                totalTime: document.getElementById('totalTime'),
+                sessions: document.getElementById('sessions'),
+                score: document.getElementById('score'),
+                streak: document.getElementById('streak'),
+                status: document.getElementById('status-indicator'),
+                cameraBox: document.getElementById('camera-box'),
+                video: document.getElementById('webcam'),
+                overlayCtx: document.getElementById('ai-overlay').getContext('2d', { willReadFrequently: true }),
+                overlayCanvas: document.getElementById('ai-overlay'),
+                camTag: document.getElementById('cam-tag'),
+                btns: {
+                    start: document.getElementById('btn-start'),
+                    pause: document.getElementById('btn-pause'),
+                    resume: document.getElementById('btn-resume'),
+                    finish: document.getElementById('btn-finish')
+                }
+            };
+
+            // --- Core Logic ---
+            function loadData() {
+                const stored = localStorage.getItem('studySprintData');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    const today = new Date().toDateString();
+
+                    if (parsed.lastActiveDate !== today) {
+                        if (isConsecutiveDay(parsed.lastActiveDate)) state.currentStreak = parsed.currentStreak || 0;
+                        else state.currentStreak = 0;
+                        state.totalMinutesToday = 0;
+                        state.sessionCount = 0;
+                    } else {
+                        state.totalMinutesToday = parsed.totalMinutesToday || 0;
+                        state.sessionCount = parsed.sessionCount || 0;
+                        state.currentStreak = parsed.currentStreak || 0;
+                    }
+                }
+                updateUI();
+            }
+
+            function saveData() {
+                const today = new Date().toDateString();
+                const data = {
+                    totalMinutesToday: state.totalMinutesToday,
+                    sessionCount: state.sessionCount,
+                    lastActiveDate: today,
+                    currentStreak: state.currentStreak
+                };
+                localStorage.setItem('studySprintData', JSON.stringify(data));
+            }
+
+            function isConsecutiveDay(lastDateStr) {
+                if (!lastDateStr) return false;
+                const lastDate = new Date(lastDateStr);
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                return lastDate.toDateString() === yesterday.toDateString();
+            }
+
+            function formatTime(totalSeconds) {
+                const h = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
+                const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+                const s = (totalSeconds % 60).toString().padStart(2, '0');
+                return `${h}:${m}:${s}`;
+            }
+
+            function updateUI() {
+                elements.timer.textContent = formatTime(state.sessionSeconds);
+                elements.totalTime.textContent = `${state.totalMinutesToday}m`;
+                elements.sessions.textContent = state.sessionCount;
+                elements.streak.textContent = `${state.currentStreak} 🔥`;
+                updateButtons();
+                updateScore();
+            }
+
+            function updateButtons() {
+                const { start, pause, resume, finish } = elements.btns;
+                start.classList.add('hidden');
+                pause.classList.add('hidden');
+                resume.classList.add('hidden');
+                finish.classList.add('hidden');
+
+                if (state.sessionSeconds === 0 && !state.isTimerRunning) {
+                    start.classList.remove('hidden');
+                    if (state.aiModel) elements.status.textContent = "SYSTEM READY // CLICK START";
+                } else if (state.isTimerRunning) {
+                    pause.classList.remove('hidden');
+                    finish.classList.remove('hidden');
+                    elements.timer.classList.add('timer-active');
+                } else if (!state.isTimerRunning && state.sessionSeconds > 0) {
+                    resume.classList.remove('hidden');
+                    finish.classList.remove('hidden');
+                    elements.status.textContent = "SESSION PAUSED";
+                    elements.timer.classList.remove('timer-active');
+                }
+            }
+
+            function updateScore() {
+                const m = state.totalMinutesToday;
+                const s = state.currentStreak;
+                let msg = "Awaiting input...";
+                if (m > 0) {
+                    if (m >= 180 && s >= 3) msg = "🏆 ELITE CONSISTENCY";
+                    else if (m >= 120) msg = "🚀 HIGH PERFORMANCE";
+                    else if (m >= 60) msg = "💪 PRODUCTIVE FLOW";
+                    else msg = "🌱 MOMENTUM BUILDING";
+                }
+                elements.score.textContent = msg;
+            }
+
+            function playPenaltySound() {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(150, audioCtx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.3);
+            }
+
+            // --- AI Logic ---
+            async function initAI() {
+                try {
+                    elements.status.textContent = "INITIALIZING NEURAL NET...";
+                    state.aiModel = await cocoSsd.load();
+                    console.log("Model Loaded");
+                    elements.status.textContent = "SYSTEM READY";
+                    elements.btns.start.disabled = false;
+                    elements.btns.start.textContent = "INITIATE";
+                } catch (e) {
+                    console.error(e);
+                    elements.status.textContent = "BOOT ERROR. RELOAD.";
+                }
+            }
+
+            async function startCamera() {
+                if (state.stream) return;
+                try {
+                    elements.cameraBox.classList.add('active');
+                    state.stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } });
+                    elements.video.srcObject = state.stream;
+                    elements.video.onloadeddata = () => {
+                        state.isVideoReady = true;
+                        elements.overlayCanvas.width = elements.video.videoWidth;
+                        elements.overlayCanvas.height = elements.video.videoHeight;
+                    };
+                    elements.camTag.textContent = "SCANNING...";
+                    elements.camTag.style.color = "var(--cyan)";
+                    state.aiCheckId = setInterval(runAIDetection, 1000);
+                } catch (err) {
+                    elements.status.textContent = "⚠️ OPTICS BLOCKED";
+                }
+            }
+
+            function stopCamera() {
+                if (state.stream) {
+                    state.stream.getTracks().forEach(track => track.stop());
+                    state.stream = null;
+                }
+                if (state.aiCheckId) clearInterval(state.aiCheckId);
+                elements.cameraBox.classList.remove('active');
+                elements.cameraBox.classList.remove('alert-mode');
+                elements.timer.classList.remove('timer-penalty');
+                state.isVideoReady = false;
+            }
+
+            async function runAIDetection() {
+                if (!state.isTimerRunning || !state.aiModel || !state.isVideoReady) return;
+                const predictions = await state.aiModel.detect(elements.video);
+                const ctx = elements.overlayCtx;
+                ctx.clearRect(0, 0, elements.overlayCanvas.width, elements.overlayCanvas.height);
+                let personFound = false;
+
+                let phoneDetected = false;
+
+                predictions.forEach(prediction => {
+                    if (prediction.class === 'person' && prediction.score > 0.6) {
+                        personFound = true;
+                        ctx.strokeStyle = '#00f3ff';
+                        ctx.shadowBlur = 10;
+                        ctx.shadowColor = '#00f3ff';
+                        ctx.lineWidth = 2;
+
+                        // Corner Bracket Style Drawing
+                        const [x, y, w, h] = prediction.bbox;
+                        ctx.strokeRect(x, y, w, h);
+                    }
+
+                    if ((prediction.class === 'cell phone' || prediction.class === 'laptop' || prediction.class === 'book') && prediction.score > 0.6) {
+                        phoneDetected = true;
+                    }
+                });
+
+                state.isUserPresent = personFound;
+
+                if (phoneDetected) {
+                    elements.status.textContent = "⚠ DISTRACTION DEVICE DETECTED";
+                    elements.status.style.color = "var(--red)";
+                    // Optional: You might want to trigger a penalty similar to user absence, 
+                    // but the prompt only specified changing the text content.
+                    // I will leave the existing user presence logic to control the timer/penalty 
+                    // unless the user is specifically *absent*. check below.
+                } else if (personFound) {
+                    elements.status.textContent = "● OPTICAL LOCK // USER DETECTED";
+                    elements.status.style.color = "var(--cyan)";
+                    elements.cameraBox.classList.remove('alert-mode');
+                    elements.timer.classList.remove('timer-penalty');
+                    elements.camTag.textContent = "LOCKED";
+                    elements.camTag.style.color = "var(--cyan)";
+                    elements.camTag.parentNode.classList.remove('hud-alert');
+                } else {
+                    elements.status.textContent = "! ALERT // SUBJECT ABSENT !";
+                    elements.status.style.color = "var(--red)";
+                    elements.cameraBox.classList.add('alert-mode');
+                    elements.timer.classList.add('timer-penalty');
+                    elements.camTag.textContent = "MISSING";
+                    elements.camTag.parentNode.classList.add('hud-alert');
+                }
+            }
+
+            // --- Timer Actions ---
+            function start() {
+                if (!state.isTimerRunning) {
+                    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    state.isUserPresent = true;
+                    state.isTimerRunning = true;
+                    state.timerId = setInterval(() => {
+                        if (state.isUserPresent) {
+                            let multiplier = 1;
+
+                            if (state.currentStreak >= 3) {
+                                multiplier = 2;
+                            }
+
+                            state.sessionSeconds += multiplier;
+
+                            if (state.sessionSeconds > 0 && state.sessionSeconds % 1500 === 0) {
+                                elements.status.textContent = "🧠 Recommended: 5 Min Break";
+                            }
+                        } else {
+                            if (state.sessionSeconds > 0) {
+                                state.sessionSeconds--;
+                                playPenaltySound();
+                            }
+                        }
+                        elements.timer.textContent = formatTime(state.sessionSeconds);
+                    }, 1000);
+                    startCamera();
+                    updateUI();
+                }
+            }
+
+            function pause() {
+                if (state.isTimerRunning) {
+                    clearInterval(state.timerId);
+                    state.isTimerRunning = false;
+                    stopCamera();
+                    updateUI();
+                }
+            }
+
+            function resume() { start(); }
+
+            function finish() {
+                pause();
+                const sessionMins = Math.floor(state.sessionSeconds / 60);
+                if (sessionMins > 0) {
+                    state.totalMinutesToday += sessionMins;
+                    state.sessionCount++;
+                    const today = new Date().toDateString();
+                    const stored = localStorage.getItem('studySprintData');
+                    const lastDate = stored ? JSON.parse(stored).lastActiveDate : null;
+                    if (lastDate !== today) state.currentStreak++;
+                }
+                state.sessionSeconds = 0;
+                saveData();
+                updateUI();
+            }
+
+            function hardReset() {
+                if (confirm("Confirm Wipe?")) {
+                    pause();
+                    localStorage.removeItem('studySprintData');
+                    state.sessionSeconds = 0; state.totalMinutesToday = 0;
+                    state.sessionCount = 0; state.currentStreak = 0;
+                    updateUI();
+                }
+            }
+
+            function setTimerFromInput() {
+                const val = parseInt(document.getElementById('test-seconds').value);
+                if (!isNaN(val)) { pause(); state.sessionSeconds = val; updateUI(); }
+            }
+
+            function devAddStreak() {
+                state.currentStreak++;
+                updateUI();
+                alert(`Dev Tool: Streak increased to ${state.currentStreak}`);
+            }
+
+            loadData();
+            initAI();
+
+            return { start, pause, resume, finish, hardReset, setTimerFromInput, devAddStreak };
+        })();
+    </script>
+</body>
+
+</html>

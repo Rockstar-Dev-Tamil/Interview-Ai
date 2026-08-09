@@ -8,19 +8,22 @@ def route_after_evaluation(state: InterviewState) -> str:
     Return one of: "retry", "probe", "continue", "increase_difficulty", "feedback"
     """
     last_user_answer = state.get("last_user_answer")
-    if last_user_answer is not None and not str(last_user_answer).strip():
-        return "retry"
-
+    if last_user_answer is not None:
+        answer_str = str(last_user_answer).strip().lower()
+        if not answer_str:
+            return "retry"
+            
+        idk_phrases = ["idk", "i don't know", "i dont know", "not sure", "not aware", "no idea", "skip"]
+        if any(p in answer_str for p in idk_phrases):
+            return "continue"
 
     question_count = state.get("question_count", 0)
     unique_covered_days = len(set(state.get("covered_days", [])))
     last_answer_quality = state.get("last_answer_quality", 0.0)
     probe_count = state.get("probe_count", 0)
 
-    if question_count >= 12:
-        return "feedback"
-
-    if question_count >= 8 and unique_covered_days >= 4 and last_answer_quality >= 0.65:
+    # End interview and give feedback after 13 questions
+    if question_count >= 14:
         return "feedback"
 
     last_eval = state.get("last_evaluation", {})
