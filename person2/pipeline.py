@@ -3,7 +3,6 @@ import json
 import sqlite3
 import faiss
 import numpy as np
-from sentence_transformers import SentenceTransformer
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any
 from langchain_google_genai import ChatGoogleGenerativeAI
