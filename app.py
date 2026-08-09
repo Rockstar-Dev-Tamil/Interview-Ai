@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 # Using absolute imports relative to project root
 from person1.graph import run_turn
 
+import threading
+
 app = FastAPI(title="ABTALKS AI Interview API")
 
 # Configure CORS
@@ -29,6 +31,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def startup_event():
+    def preload_heavy_modules():
+        logger.info("Background thread: Preloading heavy AI modules (Langchain, GoogleGenAI)...")
+        try:
+            from langchain_core.prompts import PromptTemplate
+            from langchain_google_genai import ChatGoogleGenerativeAI
+            # instantiate one to force pydantic initialization overhead
+            _ = ChatGoogleGenerativeAI(model="gemini-flash-lite-latest", temperature=0.1)
+            logger.info("Background thread: Preloading complete!")
+        except Exception as e:
+            logger.error(f"Background thread preloading error: {e}")
+            
+    thread = threading.Thread(target=preload_heavy_modules)
+    thread.daemon = True
+    thread.start()
 
 @app.get("/health")
 async def health_check():
