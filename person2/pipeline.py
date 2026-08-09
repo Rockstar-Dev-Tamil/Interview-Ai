@@ -308,12 +308,10 @@ def evaluate_answer(question: dict, answer: str, state: dict = None) -> dict:
     )
     diff_chain = diff_prompt | get_llm().with_structured_output(OptimizedAnswer)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
         base_future = executor.submit(base_chain.invoke, {"question": q_text, "concepts": concepts, "answer": answer})
         diff_future = executor.submit(diff_chain.invoke, {"answer": answer})
         tl_future = executor.submit(_run_persona, "Tech Lead", "Focus on technical rigor, edge cases, and missing metrics. Be critical.", q_text, answer)
-        hr_future = executor.submit(_run_persona, "HR Manager", "Focus on teamwork, ownership, culture fit, and soft skills.", q_text, answer)
-        hm_future = executor.submit(_run_persona, "Hiring Manager", "Focus on business impact, ambition, and big-picture thinking.", q_text, answer)
 
         try:
             base_res = base_future.result()
@@ -328,7 +326,7 @@ def evaluate_answer(question: dict, answer: str, state: dict = None) -> dict:
             result_dict["answer_diff"] = ""
 
         deliberation_logs = []
-        for future in [tl_future, hr_future, hm_future]:
+        for future in [tl_future]:
             try:
                 deliberation_logs.append(future.result())
             except Exception:
