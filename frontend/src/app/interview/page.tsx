@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { startInterview, sendAnswer, checkInterruption } from "@/lib/api";
+import { sendAnswer, checkInterruption } from "@/lib/api";
 import InterviewMessage from "@/components/ui/InterviewMessage";
 import InterviewInput from "@/components/ui/InterviewInput";
 import ThinkingIndicator from "@/components/ui/ThinkingIndicator";
@@ -91,8 +91,9 @@ export default function InterviewPage() {
       const cId = localStorage.getItem("candidateId");
       const cName = localStorage.getItem("candidateName");
       const skillsStr = localStorage.getItem("candidateSkills");
+      const firstReplyStr = localStorage.getItem("firstReply");
       
-      if (!sessionId || !cId || !cName) {
+      if (!sessionId || !cId || !cName || !firstReplyStr) {
         router.push("/");
         return;
       }
@@ -107,13 +108,13 @@ export default function InterviewPage() {
       }
 
       try {
-        const res = await startInterview(sessionId, { id: cId, name: cName });
+        const res = JSON.parse(firstReplyStr);
         setMessages([{ role: "ai", content: res.reply }]);
         speakText(res.reply);
         setLoading(false);
       } catch (err) {
         console.error(err);
-        setError("Failed to start session. Please try again.");
+        setError("Failed to parse initial session state. Please restart.");
         setLoading(false);
       }
     };

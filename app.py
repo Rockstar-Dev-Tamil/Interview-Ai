@@ -148,6 +148,8 @@ async def interview_turn(request: InterviewRequest):
             answerDiff=result["state"].get("last_answer_diff")
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error processing interview turn: {e}", exc_info=True)
         # We don't expose stack traces.

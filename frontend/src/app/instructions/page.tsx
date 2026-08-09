@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, ShieldCheck, FileText, AlertCircle, Camera } from "lucide-react";
 import { motion } from "framer-motion";
 import FocusCamera, { FocusStatus } from "@/components/ui/FocusCamera";
+import { startInterview } from "@/lib/api";
 
 export default function InstructionsPage() {
   const router = useRouter();
@@ -16,7 +17,7 @@ export default function InstructionsPage() {
   const [isStarting, setIsStarting] = useState(false);
   const [loadingText, setLoadingText] = useState("Connecting to server...");
 
-  const handleProceed = () => {
+  const handleProceed = async () => {
     // Validate inputs
     if (!agreed) {
       setError("Please agree to the interview guidelines before proceeding.");
@@ -34,15 +35,37 @@ export default function InstructionsPage() {
     // Save a flag indicating they passed verification (optional)
     localStorage.setItem("idVerified", "true");
     
-    // Simulate connection delay and sequence
-    setTimeout(() => setLoadingText("Initializing AI agent..."), 1200);
-    setTimeout(() => setLoadingText("Generating curriculum..."), 2400);
-    setTimeout(() => setLoadingText("Starting session..."), 3600);
-    
-    // Redirect after delay
-    setTimeout(() => {
-      router.push("/interview");
-    }, 4500);
+    const sessionId = localStorage.getItem("sessionId");
+    const cId = localStorage.getItem("candidateId");
+    const cName = localStorage.getItem("candidateName");
+
+    if (!sessionId || !cId || !cName) {
+      setError("Missing session info. Please restart.");
+      setIsStarting(false);
+      return;
+    }
+
+    // Progress updates to keep user engaged
+    setLoadingText("Initializing AI agent...");
+    const t1 = setTimeout(() => setLoadingText("Generating curriculum..."), 3000);
+    const t2 = setTimeout(() => setLoadingText("Connecting to server..."), 8000);
+
+    try {
+      const res = await startInterview(sessionId, { id: cId, name: cName });
+      clearTimeout(t1);
+      clearTimeout(t2);
+      localStorage.setItem("firstReply", JSON.stringify(res));
+      setLoadingText("Terminal ready...");
+      setTimeout(() => {
+        router.push("/interview");
+      }, 500);
+    } catch (err) {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      console.error(err);
+      setError("Failed to connect to the interview server. Please try again.");
+      setIsStarting(false);
+    }
   };
 
   return (
