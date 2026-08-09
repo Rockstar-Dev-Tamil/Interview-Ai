@@ -232,9 +232,48 @@ def retrieve_question(state: Dict[str, Any]) -> Dict[str, Any]:
     conn.close()
     return {"question_text": "We have covered all topics.", "day": -1, "question_id": "done"}
 
-def evaluate_answer(question: dict, answer: str, state: dict = None) -> dict:
-    """Score raw answer and return structured feedback schema."""
+import concurrent.futures
+
+class PersonaEvaluation(BaseModel):
+    score: float = Field(description="Score from 0.0 to 1.0")
+    feedback: str = Field(description="One sentence of feedback from this persona's unique perspective")
+
+class OptimizedAnswer(BaseModel):
+    diff_html: str = Field(description="The optimized answer with HTML <del> and <ins> tags to show the diff.")
+
+def _run_persona(persona_name: str, persona_prompt: str, q_text: str, answer: str) -> dict:
     prompt = PromptTemplate.from_template(
+        f"You are the {persona_name}. {persona_prompt}\n"
+        "Question: {{question}}\n"
+        "Candidate's Answer: {{answer}}\n"
+        "Provide your score (0.0 to 1.0) and exactly one sentence of feedback acting as this persona."
+    )
+    chain = prompt | llm.with_structured_output(PersonaEvaluation)
+    try:
+        res = chain.invoke({"question": q_text, "answer": answer})
+        return {"persona": persona_name, "score": res.score, "message": res.feedback}
+    except Exception as e:
+        return {"persona": persona_name, "score": 0.5, "message": "I abstain from evaluating."}
+
+def evaluate_answer(question: dict, answer: str, state: dict = None) -> dict:
+    """Score raw answer and return structured feedback schema, plus deliberation logs and diff."""
+    q_text = question.get("question_text", str(question)) if isinstance(question, dict) else str(question)
+    concepts = ", ".join(question.get("expected_concepts", [])) if isinstance(question, dict) else ""
+
+    fingerprint_instruction = ""
+    candidate_id = state.get("candidate", {}).get("id") if state else None
+    if candidate_id:
+        try:
+            with open(CANDIDATES_PATH, "r") as f:
+                data = json.load(f)
+            for c in data.get("candidates", []):
+                if c["member"]["id"] == candidate_id and c.get("fingerprint"):
+                    fingerprint_instruction = f"\n3. Watch out for their known weakness: '{c['fingerprint']}'. Penalize them heavily if they repeat this mistake."
+                    break
+        except Exception:
+            pass
+
+    base_prompt = PromptTemplate.from_template(
         "You are evaluating a candidate's answer to the following technical question.\n"
         "Question: {question}\n"
         "Expected Concepts: {concepts}\n"
@@ -242,13 +281,46 @@ def evaluate_answer(question: dict, answer: str, state: dict = None) -> dict:
         "Evaluate the technical depth, correctness, and completeness of the answer.\n"
         "IMPORTANT RULES:\n"
         "1. If the candidate explicitly states they do not know the answer (e.g., 'I don't know', 'I am not sure', 'pass'), set quality to 0.0, explain that they lacked knowledge in the rationale, and set recommended_action to 'continue'.\n"
-        "2. If the candidate's answer is completely off-topic or nonsensical, set quality to 0.0, explain that it was off-topic in the rationale, and set recommended_action to 'retry'."
+        f"2. If the candidate's answer is completely off-topic or nonsensical, set quality to 0.0, explain that it was off-topic in the rationale, and set recommended_action to 'retry'.{fingerprint_instruction}"
     )
-    chain = prompt | llm.with_structured_output(EvaluationResult)
-    q_text = question.get("question_text", str(question)) if isinstance(question, dict) else str(question)
-    concepts = ", ".join(question.get("expected_concepts", [])) if isinstance(question, dict) else ""
-    result = chain.invoke({"question": q_text, "concepts": concepts, "answer": answer})
-    return result.model_dump()
+    base_chain = base_prompt | llm.with_structured_output(EvaluationResult)
+
+    diff_prompt = PromptTemplate.from_template(
+        "You are an expert technical writer.\n"
+        "The candidate answered: {answer}\n"
+        "Rewrite the answer to maximize Signal Density (more concrete facts, fewer buzzwords).\n"
+        "Return the diff in HTML using <del>strikethrough</del> for removed words and <ins>inserted</ins> for added words. Only return the HTML."
+    )
+    diff_chain = diff_prompt | llm.with_structured_output(OptimizedAnswer)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        base_future = executor.submit(base_chain.invoke, {"question": q_text, "concepts": concepts, "answer": answer})
+        diff_future = executor.submit(diff_chain.invoke, {"answer": answer})
+        tl_future = executor.submit(_run_persona, "Tech Lead", "Focus on technical rigor, edge cases, and missing metrics. Be critical.", q_text, answer)
+        hr_future = executor.submit(_run_persona, "HR Manager", "Focus on teamwork, ownership, culture fit, and soft skills.", q_text, answer)
+        hm_future = executor.submit(_run_persona, "Hiring Manager", "Focus on business impact, ambition, and big-picture thinking.", q_text, answer)
+
+        try:
+            base_res = base_future.result()
+            result_dict = base_res.model_dump()
+        except Exception:
+            # Fallback if evaluation fails
+            result_dict = {"quality": 0.5, "matched_concepts": [], "missing_concepts": [], "rationale": "Error", "recommended_action": "continue"}
+
+        try:
+            result_dict["answer_diff"] = diff_future.result().diff_html
+        except Exception:
+            result_dict["answer_diff"] = ""
+
+        deliberation_logs = []
+        for future in [tl_future, hr_future, hm_future]:
+            try:
+                deliberation_logs.append(future.result())
+            except Exception:
+                pass
+
+    result_dict["deliberation_logs"] = deliberation_logs
+    return result_dict
 
 def validate_feedback_hallucination(question: dict, answer: str, feedback: dict) -> bool:
     """
@@ -274,6 +346,37 @@ def validate_feedback_hallucination(question: dict, answer: str, feedback: dict)
         print(f"DeepEval validation skipped or failed (likely missing OpenAI keys): {e}")
         # Fail open if API keys for DeepEval's default OpenAI models are missing
         return True
+
+def extract_fingerprint(state: dict, feedback: dict) -> None:
+    """Extract a behavioral fingerprint and save it to candidates.json."""
+    try:
+        prompt = PromptTemplate.from_template(
+            "Analyze the candidate's performance summary and gaps.\n"
+            "Summary: {summary}\n"
+            "Gaps: {gaps}\n"
+            "Identify one core recurring behavioral anti-pattern or failure mode "
+            "(e.g., 'Consistently fails to mention metrics', 'Hides behind 'we' instead of 'I'').\n"
+            "Keep it under 15 words. Reply with just the fingerprint."
+        )
+        chain = prompt | llm
+        summary = feedback.get("summary", "")
+        gaps = ", ".join(feedback.get("gaps", []))
+        res = chain.invoke({"summary": summary, "gaps": gaps})
+        fingerprint = res.content.strip()
+        
+        candidate_id = state.get("candidate", {}).get("id")
+        if candidate_id:
+            with open(CANDIDATES_PATH, "r") as f:
+                data = json.load(f)
+            for c in data.get("candidates", []):
+                if c["member"]["id"] == candidate_id:
+                    c["fingerprint"] = fingerprint
+                    break
+            with open(CANDIDATES_PATH, "w") as f:
+                json.dump(data, f, indent=2)
+                
+    except Exception as e:
+        print("Failed to extract fingerprint:", e)
 
 if __name__ == "__main__":
     pass

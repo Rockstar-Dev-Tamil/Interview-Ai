@@ -31,6 +31,8 @@ class InterviewResponse(BaseModel):
     reply: str = Field(..., description="Interviewer's next message")
     done: bool = Field(..., description="True if the interview is complete")
     feedback: Optional[FeedbackModel] = Field(None, description="Final feedback, populated when done=True")
+    deliberation: Optional[List[dict]] = Field(None, description="Logs from the AI Deliberation Room")
+    answerDiff: Optional[str] = Field(None, description="Git-style diff of the candidate's answer")
 
 class InterruptRequest(BaseModel):
     sessionId: str = Field(..., description="Unique session identifier")

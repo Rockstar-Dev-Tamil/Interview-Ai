@@ -47,6 +47,8 @@ type Message = {
   role: "ai" | "user";
   content: string;
   isProbe?: boolean;
+  deliberation?: any[];
+  answerDiff?: string;
 };
 
 export default function InterviewPage() {
@@ -151,7 +153,13 @@ export default function InterviewPage() {
         setQuestionCount((c) => c + 1);
       }
 
-      setMessages((prev) => [...prev, { role: "ai", content: res.reply, isProbe }]);
+      setMessages((prev) => [...prev, { 
+        role: "ai", 
+        content: res.reply, 
+        isProbe,
+        deliberation: res.deliberation,
+        answerDiff: res.answerDiff
+      }]);
       speakText(res.reply);
 
       if (res.done) {

@@ -95,7 +95,9 @@ async def interview_turn(request: InterviewRequest):
             return InterviewResponse(
                 reply=result["reply"],
                 done=result["done"],
-                feedback=feedback
+                feedback=feedback,
+                deliberation=state.get("last_deliberation"),
+                answerDiff=state.get("last_answer_diff")
             )
             
         # Ongoing session
@@ -122,7 +124,9 @@ async def interview_turn(request: InterviewRequest):
         return InterviewResponse(
             reply=result["reply"],
             done=result["done"],
-            feedback=feedback
+            feedback=feedback,
+            deliberation=result["state"].get("last_deliberation"),
+            answerDiff=result["state"].get("last_answer_diff")
         )
         
     except Exception as e:
@@ -175,9 +179,16 @@ async def check_interruption(request: InterruptRequest):
             "Reply with 'CONTINUE' if they should keep going."
         )
         
-        response = pipeline._call_llm([
-            {"role": "system", "content": system_prompt}
-        ], temperature=0.3)
+        try:
+            # Try to use the underlying langchain llm
+            from langchain_core.messages import SystemMessage
+            response = pipeline.llm.invoke([SystemMessage(content=system_prompt)])
+        except Exception:
+            # Fallback to heuristic
+            words = partial_answer.lower().split()
+            if len(words) > 40:
+                return InterruptResponse(interrupt=True, reply="Hold on, let's keep it concise. What is the core idea?")
+            return InterruptResponse(interrupt=False)
         
         response_text = response.content.strip()
         if response_text.startswith("INTERRUPT:"):

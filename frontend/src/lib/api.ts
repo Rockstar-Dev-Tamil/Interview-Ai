@@ -17,6 +17,8 @@ export interface InterviewResponse {
   reply: string;
   done: boolean;
   feedback: Feedback | null;
+  deliberation?: any[];
+  answerDiff?: string;
 }
 
 const getApiBaseUrl = () => {

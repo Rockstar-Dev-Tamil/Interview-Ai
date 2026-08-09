@@ -67,7 +67,7 @@ def build_graph(pipeline: Any = None) -> Any:
     builder.add_node("probe_node", lambda state: probe_node(state, pipeline))
     builder.add_node("adjust_diff_node", lambda state: adjust_diff_node(state, pipeline))
     builder.add_node("next_question_node", lambda state: next_question_node(state, pipeline))
-    builder.add_node("feedback_node", feedback_node)
+    builder.add_node("feedback_node", lambda state: feedback_node(state, pipeline))
 
     # Set entry point
     builder.set_entry_point("start_node")

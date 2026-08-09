@@ -120,6 +120,8 @@ def evaluate_answer_node(state: InterviewState, pipeline: Any = None) -> Dict[st
     return {
         "last_evaluation": eval_result,
         "last_answer_quality": quality,
+        "last_deliberation": eval_result.get("deliberation_logs", []),
+        "last_answer_diff": eval_result.get("answer_diff", ""),
         "strengths": strengths,
         "gaps": gaps,
         "summary_memory": summary_memory,
@@ -226,7 +228,7 @@ def next_question_node(state: InterviewState, pipeline: Any = None) -> Dict[str,
     }
 
 
-def feedback_node(state: InterviewState) -> Dict[str, Any]:
+def feedback_node(state: InterviewState, pipeline: Any = None) -> Dict[str, Any]:
     """
     6. feedback_node(state)
        - calls generate_final_feedback(state)
@@ -235,8 +237,18 @@ def feedback_node(state: InterviewState) -> Dict[str, Any]:
        - sets phase = "done"
        - sets reply to a closing message
     """
+    if pipeline is None:
+        pipeline = get_pipeline()
+
     feedback_obj = generate_final_feedback(state)
     reply = "Thank you for participating in the interview. Here is your final feedback summary."
+
+    try:
+        if hasattr(pipeline, "extract_fingerprint"):
+            pipeline.extract_fingerprint(state, feedback_obj)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error extracting fingerprint: {e}")
 
     return {
         "feedback": feedback_obj,
