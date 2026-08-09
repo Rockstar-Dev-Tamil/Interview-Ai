@@ -2,15 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ShieldCheck, FileText, AlertCircle, Upload, Camera } from "lucide-react";
+import { ArrowRight, ShieldCheck, FileText, AlertCircle, Camera } from "lucide-react";
 import { motion } from "framer-motion";
 import FocusCamera, { FocusStatus } from "@/components/ui/FocusCamera";
 
 export default function InstructionsPage() {
   const router = useRouter();
   
-  const [aadharNumber, setAadharNumber] = useState("");
-  const [file, setFile] = useState<File | null>(null);
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [proctorStatus, setProctorStatus] = useState<FocusStatus>("OFFLINE");
@@ -18,14 +16,8 @@ export default function InstructionsPage() {
 
   const handleProceed = () => {
     // Validate inputs
-    const cleanedAadhar = aadharNumber.replace(/\D/g, "");
-    if (cleanedAadhar.length !== 12) {
-      setError("Please enter a valid 12-digit Aadhar number.");
-      return;
-    }
-    
-    if (!file) {
-      setError("Please upload a scanned copy or photo of your ID proof.");
+    if (!agreed) {
+      setError("Please agree to the interview guidelines before proceeding.");
       return;
     }
 
@@ -62,10 +54,10 @@ export default function InstructionsPage() {
             <ShieldCheck size={28} className="text-primary" />
           </div>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-text">
-            Instructions & Identity Verification
+            Interview Instructions
           </h1>
           <p className="text-lg text-text-secondary max-w-xl mx-auto">
-            Please read the rules carefully and verify your identity before starting.
+            Please read the rules carefully before starting.
           </p>
         </div>
 
@@ -86,56 +78,6 @@ export default function InstructionsPage() {
           </div>
 
           <div className="h-px w-full bg-border" />
-
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <ShieldCheck size={20} className="text-text-secondary" />
-              Identity Verification
-            </h2>
-            <p className="text-sm text-text-tertiary">
-              To maintain the integrity of the assessment, please provide your Aadhar details for verification.
-            </p>
-            
-            <div className="space-y-4 pt-2">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-text">Aadhar Number</label>
-                <input
-                  type="text"
-                  placeholder="xxxx xxxx xxxx"
-                  value={aadharNumber}
-                  onChange={(e) => setAadharNumber(e.target.value)}
-                  maxLength={14}
-                  className="w-full bg-surface-2 border border-border rounded-lg p-3 text-text placeholder:text-text-tertiary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-text">Upload ID Proof (PDF, JPG, PNG)</label>
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-border border-dashed rounded-lg cursor-pointer bg-surface hover:bg-surface-2 transition-colors">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Upload size={24} className="text-text-tertiary mb-2" />
-                      <p className="mb-2 text-sm text-text-secondary">
-                        <span className="font-semibold">Click to upload</span> or drag and drop
-                      </p>
-                      <p className="text-xs text-text-tertiary">
-                        {file ? file.name : "No file selected"}
-                      </p>
-                    </div>
-                    <input 
-                      type="file" 
-                      className="hidden" 
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          setFile(e.target.files[0]);
-                        }
-                      }}
-                    />
-                  </label>
-                </div>
-              </div>
-            </div>
 
             {error && (
               <motion.div 
@@ -188,7 +130,7 @@ export default function InstructionsPage() {
                   )}
                 </div>
                 <span className="text-sm text-text-secondary group-hover:text-text transition-colors">
-                  I have read and understood the interview guidelines. I confirm that the identity information provided is accurate, and I agree to proceed with the assessment.
+                  I have read and understood the interview guidelines and I agree to proceed with the assessment.
                 </span>
               </label>
             </div>
