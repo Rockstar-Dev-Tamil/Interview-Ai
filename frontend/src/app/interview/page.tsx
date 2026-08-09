@@ -1,14 +1,47 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { startInterview, sendAnswer, checkInterruption } from "@/lib/api";
 import InterviewMessage from "@/components/ui/InterviewMessage";
 import InterviewInput from "@/components/ui/InterviewInput";
 import ThinkingIndicator from "@/components/ui/ThinkingIndicator";
 import ErrorState from "@/components/ui/ErrorState";
 import LoadingState from "@/components/ui/LoadingState";
-import FocusCamera, { FocusStatus } from "@/components/ui/FocusCamera";
+import type { FocusStatus } from "@/components/ui/FocusCamera";
+
+const FocusCamera = dynamic(() => import("@/components/ui/FocusCamera"), { ssr: false });
+
+const formatTime = (seconds: number) => {
+  const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+  const s = (seconds % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+};
+
+const InterviewTimer = ({ hasStarted, onTimeUp }: { hasStarted: boolean, onTimeUp: () => void }) => {
+  const [timeLeft, setTimeLeft] = useState(30 * 60);
+
+  useEffect(() => {
+    if (!hasStarted) return;
+    if (timeLeft <= 0) {
+      onTimeUp();
+      return;
+    }
+    
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [hasStarted, timeLeft, onTimeUp]);
+
+  return (
+    <div className="absolute top-6 right-6 md:right-12 lg:right-20 bg-surface-2 border border-border px-4 py-2 rounded-xl shadow-sm flex items-center gap-2 z-20">
+      <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+      <span className="text-text-secondary font-mono text-sm tracking-widest">{formatTime(timeLeft)}</span>
+    </div>
+  );
+};
 
 type Message = {
   role: "ai" | "user";
@@ -26,7 +59,6 @@ export default function InterviewPage() {
   const [candidateSkills, setCandidateSkills] = useState<string[]>([]);
   const [input, setInput] = useState("");
   const [interruptCount, setInterruptCount] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(30 * 60); // 30 mins
   const [proctorStatus, setProctorStatus] = useState<FocusStatus>("OFFLINE");
   const [proctorMessage, setProctorMessage] = useState("Proctoring Offline");
   const [hasStarted, setHasStarted] = useState(false);
@@ -45,25 +77,9 @@ export default function InterviewPage() {
     }
   };
 
-  // Timer countdown
-  useEffect(() => {
-    if (!hasStarted) return;
-    if (timeLeft <= 0) {
-      setIsTimeUp(true);
-      return;
-    }
-    
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => prev - 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [timeLeft, router]);
-
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60).toString().padStart(2, "0");
-    const s = (seconds % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
-  };
+  const handleTimeUp = useCallback(() => {
+    setIsTimeUp(true);
+  }, []);
 
   // Initialize session
   useEffect(() => {
@@ -115,7 +131,7 @@ export default function InterviewPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  const handleSend = async (messageText: string) => {
+  const handleSend = useCallback(async (messageText: string) => {
     if (!messageText.trim() || loading) return;
 
     const sessionId = localStorage.getItem("sessionId");
@@ -150,9 +166,9 @@ export default function InterviewPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [loading, router]);
 
-  const handlePauseTyping = async (partialText: string) => {
+  const handlePauseTyping = useCallback(async (partialText: string) => {
     const sessionId = localStorage.getItem("sessionId");
     if (!sessionId || loading || partialText.trim().length < 50) return;
 
@@ -173,7 +189,12 @@ export default function InterviewPage() {
     } catch (e) {
       console.error("Interruption check failed", e);
     }
-  };
+  }, [loading]);
+
+  const handleStatusChange = useCallback((s: FocusStatus, m: string) => {
+    setProctorStatus(s);
+    setProctorMessage(m);
+  }, []);
 
   // Proctor status tracking for continuous unfocus
   useEffect(() => {
@@ -361,7 +382,7 @@ export default function InterviewPage() {
         </div>
 
         <div className="px-8 py-4">
-          <FocusCamera onStatusChange={(s, m) => { setProctorStatus(s); setProctorMessage(m); }} />
+          <FocusCamera onStatusChange={handleStatusChange} />
           {proctorStatus !== "OFFLINE" && (
             <div className={`mt-3 p-2 rounded text-[10px] uppercase font-mono tracking-wider text-center border ${
                 proctorStatus === "FOCUSED" ? "text-cyan-400 border-cyan-400/50 bg-cyan-900/20 shadow-[0_0_10px_rgba(34,211,238,0.2)]" :
@@ -388,10 +409,7 @@ export default function InterviewPage() {
       {/* Main Chat Area */}
       <div className="flex flex-col relative h-[100dvh] bg-bg transition-all duration-300 md:ml-[300px] flex-1">
         {/* Timer UI */}
-        <div className="absolute top-6 right-6 md:right-12 lg:right-20 bg-surface-2 border border-border px-4 py-2 rounded-xl shadow-sm flex items-center gap-2 z-20">
-          <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          <span className="text-text-secondary font-mono text-sm tracking-widest">{formatTime(timeLeft)}</span>
-        </div>
+        <InterviewTimer hasStarted={hasStarted} onTimeUp={handleTimeUp} />
 
         <div className="flex-1 overflow-y-auto px-6 md:px-12 lg:px-20 py-8 scroll-smooth pb-32">
           <div className="max-w-5xl mx-auto flex flex-col space-y-10">

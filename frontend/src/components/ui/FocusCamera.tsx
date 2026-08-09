@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, memo } from "react";
 import * as tf from "@tensorflow/tfjs";
 import * as cocoSsd from "@tensorflow-models/coco-ssd";
 
@@ -10,7 +10,7 @@ interface FocusCameraProps {
   onStatusChange?: (status: FocusStatus, message: string) => void;
 }
 
-export default function FocusCamera({ onStatusChange }: FocusCameraProps) {
+export default memo(function FocusCamera({ onStatusChange }: FocusCameraProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<FocusStatus>("OFFLINE");
@@ -243,4 +243,4 @@ export default function FocusCamera({ onStatusChange }: FocusCameraProps) {
         </div>
     </div>
   );
-}
+});

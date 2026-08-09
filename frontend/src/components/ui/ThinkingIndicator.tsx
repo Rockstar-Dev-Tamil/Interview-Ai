@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 import { Sparkles } from "lucide-react";
 
 export default function ThinkingIndicator() {
@@ -12,7 +12,7 @@ export default function ThinkingIndicator() {
     return () => clearTimeout(timer);
   }, []);
 
-  const dotVariants = {
+  const dotVariants: Variants = {
     animate: {
       scale: [0.5, 1, 0.5],
       opacity: [0.3, 1, 0.3],

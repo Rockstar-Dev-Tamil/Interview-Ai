@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo } from "react";
 import { Send, Mic, MicOff } from "lucide-react";
 
 declare global {
@@ -15,7 +15,7 @@ interface InterviewInputProps {
   onPauseTyping?: (text: string) => void;
 }
 
-export default function InterviewInput({ onSend, disabled = false, initialValue = "", onPauseTyping }: InterviewInputProps) {
+export default memo(function InterviewInput({ onSend, disabled = false, initialValue = "", onPauseTyping }: InterviewInputProps) {
   const [value, setValue] = useState(initialValue);
   const [isRecording, setIsRecording] = useState(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
@@ -165,4 +165,4 @@ export default function InterviewInput({ onSend, disabled = false, initialValue 
     )}
     </div>
   );
-}
+});

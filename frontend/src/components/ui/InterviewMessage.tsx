@@ -1,5 +1,6 @@
 import { Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
+import { memo } from "react";
 
 interface InterviewMessageProps {
   role: "ai" | "user";
@@ -7,7 +8,7 @@ interface InterviewMessageProps {
   isProbe?: boolean;
 }
 
-export default function InterviewMessage({ role, content, isProbe = false }: InterviewMessageProps) {
+export default memo(function InterviewMessage({ role, content, isProbe = false }: InterviewMessageProps) {
   const isAI = role === "ai";
 
   return (
@@ -55,4 +56,4 @@ export default function InterviewMessage({ role, content, isProbe = false }: Int
       )}
     </motion.div>
   );
-}
+});
