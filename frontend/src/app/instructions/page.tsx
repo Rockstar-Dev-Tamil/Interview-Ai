@@ -21,19 +21,12 @@ export default function InstructionsPage() {
       return;
     }
 
-    if (!agreed) {
-      setError("Please agree to the interview guidelines before proceeding.");
-      return;
-    }
-
     if (proctorStatus === "INITIALIZING" || proctorStatus === "ERROR") {
       setError("Please wait for the proctoring camera to initialize successfully.");
       return;
     }
 
     setError(null);
-    // In a real application, we would upload this data to the backend for verification here.
-    // For now, we proceed to the interview.
     
     // Save a flag indicating they passed verification (optional)
     localStorage.setItem("idVerified", "true");
@@ -79,63 +72,60 @@ export default function InstructionsPage() {
 
           <div className="h-px w-full bg-border" />
 
-            {error && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }} 
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 text-error text-sm mt-4"
-              >
-                <AlertCircle size={16} />
-                <span>{error}</span>
-              </motion.div>
-            )}
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }} 
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-2 text-error text-sm mt-4"
+            >
+              <AlertCircle size={16} />
+              <span>{error}</span>
+            </motion.div>
+          )}
 
-            <div className="h-px w-full bg-border mt-6 mb-4" />
-
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
-                <Camera size={20} className="text-text-secondary" />
-                Camera & Focus Check
-              </h2>
-              <p className="text-sm text-text-tertiary">
-                Your interview requires active monitoring. Please ensure you are centered in the frame. The camera starts automatically.
-              </p>
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <Camera size={20} className="text-text-secondary" />
+              Camera & Focus Check
+            </h2>
+            <p className="text-sm text-text-tertiary">
+              Your interview requires active monitoring. Please ensure you are centered in the frame. The camera starts automatically.
+            </p>
+            
+            <div className="max-w-[320px] mx-auto bg-surface-2 p-4 rounded-xl border border-border">
+              <FocusCamera onStatusChange={(s, m) => { setProctorStatus(s); setProctorMessage(m); }} />
               
-              <div className="max-w-[320px] mx-auto bg-surface-2 p-4 rounded-xl border border-border">
-                <FocusCamera onStatusChange={(s, m) => { setProctorStatus(s); setProctorMessage(m); }} />
-                
-                {proctorStatus !== "OFFLINE" && (
-                  <div className={`mt-3 p-2 rounded text-xs uppercase font-mono tracking-wider text-center border ${
-                      proctorStatus === "FOCUSED" ? "text-cyan-400 border-cyan-400/50 bg-cyan-900/20 shadow-[0_0_10px_rgba(34,211,238,0.2)]" :
-                      proctorStatus === "DISTRACTED" || proctorStatus === "ABSENT" ? "text-red-500 border-red-500/50 bg-red-900/20 shadow-[0_0_10px_rgba(239,68,68,0.3)] animate-pulse" :
-                      "text-text-secondary border-border bg-surface"
-                  }`}>
-                    {proctorMessage}
-                  </div>
+              {proctorStatus !== "OFFLINE" && (
+                <div className={`mt-3 p-2 rounded text-xs uppercase font-mono tracking-wider text-center border ${
+                    proctorStatus === "FOCUSED" ? "text-cyan-400 border-cyan-400/50 bg-cyan-900/20 shadow-[0_0_10px_rgba(34,211,238,0.2)]" :
+                    proctorStatus === "DISTRACTED" || proctorStatus === "ABSENT" ? "text-red-500 border-red-500/50 bg-red-900/20 shadow-[0_0_10px_rgba(239,68,68,0.3)] animate-pulse" :
+                    "text-text-secondary border-border bg-surface"
+                }`}>
+                  {proctorMessage}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="pt-6">
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <div className="relative flex items-center justify-center mt-0.5">
+                <input 
+                  type="checkbox" 
+                  checked={agreed}
+                  onChange={(e) => setAgreed(e.target.checked)}
+                  className="appearance-none w-5 h-5 border-2 border-border rounded bg-surface checked:bg-primary checked:border-primary transition-colors cursor-pointer"
+                />
+                {agreed && (
+                  <ShieldCheck size={14} className="absolute text-white pointer-events-none" />
                 )}
               </div>
-            </div>
-
-            <div className="pt-6">
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <div className="relative flex items-center justify-center mt-0.5">
-                  <input 
-                    type="checkbox" 
-                    checked={agreed}
-                    onChange={(e) => setAgreed(e.target.checked)}
-                    className="appearance-none w-5 h-5 border-2 border-border rounded bg-surface checked:bg-primary checked:border-primary transition-colors cursor-pointer"
-                  />
-                  {agreed && (
-                    <ShieldCheck size={14} className="absolute text-white pointer-events-none" />
-                  )}
-                </div>
-                <span className="text-sm text-text-secondary group-hover:text-text transition-colors">
-                  I have read and understood the interview guidelines and I agree to proceed with the assessment.
-                </span>
-              </label>
-            </div>
-
+              <span className="text-sm text-text-secondary group-hover:text-text transition-colors">
+                I have read and understood the interview guidelines and I agree to proceed with the assessment.
+              </span>
+            </label>
           </div>
+
         </div>
 
         {/* Action Section */}
