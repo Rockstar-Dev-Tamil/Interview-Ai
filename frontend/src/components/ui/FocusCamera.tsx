@@ -17,6 +17,13 @@ export default memo(function FocusCamera({ onStatusChange }: FocusCameraProps) {
   const [model, setModel] = useState<cocoSsd.ObjectDetection | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const requestRef = useRef<number>(0);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isComponentMounted = useRef<boolean>(true);
+
+  useEffect(() => {
+    isComponentMounted.current = true;
+    return () => { isComponentMounted.current = false; };
+  }, []);
 
   useEffect(() => {
     if (model) {
@@ -104,6 +111,9 @@ export default memo(function FocusCamera({ onStatusChange }: FocusCameraProps) {
     if (requestRef.current) {
       cancelAnimationFrame(requestRef.current);
     }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
     setStatus("OFFLINE");
     
     // Clear canvas
@@ -116,12 +126,21 @@ export default memo(function FocusCamera({ onStatusChange }: FocusCameraProps) {
   };
 
   const detectFrame = async () => {
-    if (!videoRef.current || !canvasRef.current || !model) return;
+    if (!isComponentMounted.current || !videoRef.current || !canvasRef.current || !model) return;
     
     // Wait for video to have valid dimensions
     if (videoRef.current.readyState < 2) {
         requestRef.current = requestAnimationFrame(detectFrame);
         return;
+    }
+
+    // Skip heavy ML inference if tab is hidden
+    if (document.hidden) {
+      setStatus("ABSENT");
+      timeoutRef.current = setTimeout(() => {
+          requestRef.current = requestAnimationFrame(detectFrame);
+      }, 2000);
+      return;
     }
 
     try {
@@ -182,9 +201,11 @@ export default memo(function FocusCamera({ onStatusChange }: FocusCameraProps) {
     }
 
     // Continue loop
-    setTimeout(() => {
-        requestRef.current = requestAnimationFrame(detectFrame);
-    }, 500); // 500ms between checks is enough for proctoring
+    if (isComponentMounted.current) {
+      timeoutRef.current = setTimeout(() => {
+          requestRef.current = requestAnimationFrame(detectFrame);
+      }, 2000); // Increased to 2000ms to significantly reduce CPU lag
+    }
   };
   
   // Cleanup on unmount
@@ -195,6 +216,9 @@ export default memo(function FocusCamera({ onStatusChange }: FocusCameraProps) {
       }
       if (requestRef.current) {
         cancelAnimationFrame(requestRef.current);
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
     };
   }, [stream]);
