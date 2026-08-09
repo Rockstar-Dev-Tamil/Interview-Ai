@@ -94,6 +94,7 @@ class InterviewState(TypedDict):
     # ── Question tracking ─────────────────────────────────────────────────
     question_count: int                 # total questions asked so far
     probe_count: int                    # total probes asked so far
+    retry_count: int                    # consecutive retries on the same question
     covered_days: list[int]             # curriculum day numbers covered
     asked_question_ids: list[str]       # IDs of questions already asked
 

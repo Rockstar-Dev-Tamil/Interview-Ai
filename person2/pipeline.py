@@ -193,10 +193,6 @@ def retrieve_question(state: Dict[str, Any]) -> Dict[str, Any]:
     # Prioritize Critical and Weak days
     target_days = [day for day, level in comp_map.items() if level in ["Critical", "Weak"] and day not in covered_days]
     
-    if not target_days and not comp_map:
-        # For a brand new session, just start with day 1 to completely bypass FAISS and heavy model loading!
-        target_days = [1]
-    
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
@@ -220,6 +216,13 @@ def retrieve_question(state: Dict[str, Any]) -> Dict[str, Any]:
             "source": "llm_generated"
         }
     
+    # Always ask Day 1 first if it hasn't been covered
+    if 1 not in covered_days:
+        q = _fetch_question(1)
+        if q:
+            conn.close()
+            return q
+
     if target_days:
         q = _fetch_question(target_days[0])
         if q:

@@ -28,6 +28,7 @@ def create_initial_state(candidate: Optional[dict] = None, session_id: Optional[
         "competency_map": {},
         "question_count": 0,
         "probe_count": 0,
+        "retry_count": 0,
         "covered_days": [],
         "asked_question_ids": [],
         "current_question": None,

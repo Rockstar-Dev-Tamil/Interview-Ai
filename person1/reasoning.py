@@ -32,6 +32,8 @@ def route_after_evaluation(state: InterviewState) -> str:
     if recommended_action and recommended_action in ["retry", "probe", "continue", "increase_difficulty"]:
         if recommended_action == "probe" and probe_count >= 3:
             return "continue"
+        if recommended_action == "retry" and state.get("retry_count", 0) >= 2:
+            return "continue"
         return recommended_action
 
     if last_answer_quality < 0.4 and probe_count < 3:

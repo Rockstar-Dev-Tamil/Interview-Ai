@@ -35,7 +35,8 @@ def retry_node(state: InterviewState) -> Dict[str, Any]:
         reply = "Please provide an answer to the question so we can evaluate it."
     return {
         "reply": reply,
-        "phase": "question"
+        "phase": "question",
+        "retry_count": state.get("retry_count", 0) + 1
     }
 
 
@@ -163,6 +164,11 @@ def run_turn(
         # Check if new session
         if session_state is None:
             state = create_initial_state(candidate=candidate)
+            if hasattr(pipeline, "build_competency_map") and candidate and "id" in candidate:
+                try:
+                    state["competency_map"] = pipeline.build_competency_map(candidate["id"])
+                except Exception as e:
+                    logger.error(f"Failed to build competency map: {e}")
         else:
             state = deserialize_state(session_state)
 
