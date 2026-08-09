@@ -119,7 +119,7 @@ export default function InterviewPage() {
     };
 
     init();
-  }, [router]);
+  }, [router, hasStarted]);
 
   // Navigate to coding phase on question 14
   useEffect(() => {
