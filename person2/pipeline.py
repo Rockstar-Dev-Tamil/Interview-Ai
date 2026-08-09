@@ -191,7 +191,7 @@ def retrieve_question(state: Dict[str, Any]) -> Dict[str, Any]:
     covered_days = state.get("covered_days", [])
     
     # Prioritize Critical and Weak days
-    target_days = [day for day, level in comp_map.items() if level in ["Critical", "Weak"] and day not in covered_days]
+    target_days = [int(day) for day, level in comp_map.items() if level in ["Critical", "Weak"] and int(day) not in covered_days]
     
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
