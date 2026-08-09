@@ -182,7 +182,7 @@ async def check_interruption(request: InterruptRequest):
         try:
             # Try to use the underlying langchain llm
             from langchain_core.messages import SystemMessage
-            response = pipeline.llm.invoke([SystemMessage(content=system_prompt)])
+            response = pipeline.get_llm().invoke([SystemMessage(content=system_prompt)])
         except Exception:
             # Fallback to heuristic
             words = partial_answer.lower().split()
