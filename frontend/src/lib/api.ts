@@ -22,13 +22,13 @@ export interface InterviewResponse {
 }
 
 const getApiBaseUrl = () => {
+  let url = 'http://localhost:8000';
   if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
+    url = process.env.NEXT_PUBLIC_API_URL;
+  } else if (typeof window !== 'undefined') {
+    url = `http://${window.location.hostname}:8000`;
   }
-  if (typeof window !== 'undefined') {
-    return `http://${window.location.hostname}:8000`;
-  }
-  return 'http://localhost:8000';
+  return url.endsWith('/') ? url.slice(0, -1) : url;
 };
 
 export async function getCandidates(): Promise<Candidate[]> {
