@@ -20,8 +20,15 @@ CURRICULUM_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "curricu
 CANDIDATES_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "candidates.json")
 
 # Initialize models
-embedder = SentenceTransformer("BAAI/bge-small-en-v1.5")
 llm = ChatGoogleGenerativeAI(model="gemini-flash-lite-latest", temperature=0.1)
+
+_embedder = None
+def get_embedder():
+    global _embedder
+    if _embedder is None:
+        from sentence_transformers import SentenceTransformer
+        _embedder = SentenceTransformer("BAAI/bge-small-en-v1.5")
+    return _embedder
 
 # Pydantic Schemas
 class EnrichedDay(BaseModel):
@@ -215,6 +222,7 @@ def retrieve_question(state: Dict[str, Any]) -> Dict[str, Any]:
             return q
     
     # Fallback: FAISS search for a standard question if no weak areas left
+    embedder = get_embedder()
     query_emb = embedder.encode(["Advanced engineering concepts"]).astype('float32')
     index = faiss.read_index(FAISS_INDEX_PATH)
     with open(FAISS_INDEX_PATH + ".meta", "r") as f:
