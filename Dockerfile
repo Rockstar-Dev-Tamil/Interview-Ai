@@ -16,6 +16,9 @@ COPY . .
 # Ensure the data directory exists
 RUN mkdir -p data
 
+# Pre-download SentenceTransformer model during build to prevent massive cold-start delays on Render
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-en-v1.5')"
+
 # Expose port 8000
 EXPOSE 8000
 
