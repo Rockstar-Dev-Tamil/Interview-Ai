@@ -8,9 +8,21 @@ def test_get_pipeline_default_mock():
     assert pipeline is mock_pipeline
 
 
-def test_get_pipeline_fallback_on_import_error(caplog):
+def test_get_pipeline_fallback_on_import_error(caplog, monkeypatch):
+    import builtins
+    original_import = builtins.__import__
+    def mock_import(name, *args, **kwargs):
+        if name == "person2":
+            raise ImportError("Mocked import error")
+        return original_import(name, *args, **kwargs)
+    
+    monkeypatch.setattr(builtins, "__import__", mock_import)
+    
     with caplog.at_level(logging.WARNING):
-        pipeline = get_pipeline(use_real_pipeline=True)
+        # We also need to clear cache to force a reload attempt
+        import person1.pipeline_adapter as pa
+        pa._PIPELINE_CACHE = None
+        pipeline = pa.get_pipeline(use_real_pipeline=True)
         assert pipeline is mock_pipeline
         assert "Failed to load real Person 2 pipeline" in caplog.text
 
