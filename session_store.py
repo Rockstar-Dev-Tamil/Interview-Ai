@@ -6,6 +6,17 @@ from datetime import datetime, timezone
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "data", "sessions.db")
 
+class StateEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if hasattr(obj, "dict"):
+            return obj.dict()
+        if hasattr(obj, "to_dict"):
+            return obj.to_dict()
+        try:
+            return super().default(obj)
+        except TypeError:
+            return str(obj)
+
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
@@ -30,7 +41,7 @@ def create_session(session_id: str, candidate_id: str, initial_state: Dict[str, 
     c.execute('''
         INSERT INTO sessions (session_id, candidate_id, state_json, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?)
-    ''', (session_id, candidate_id, json.dumps(initial_state), now, now))
+    ''', (session_id, candidate_id, json.dumps(initial_state, cls=StateEncoder), now, now))
     conn.commit()
     conn.close()
 
@@ -55,7 +66,7 @@ def save_session(session_id: str, state: Dict[str, Any]):
         UPDATE sessions
         SET state_json = ?, updated_at = ?
         WHERE session_id = ?
-    ''', (json.dumps(state), now, session_id))
+    ''', (json.dumps(state, cls=StateEncoder), now, session_id))
     conn.commit()
     conn.close()
 
