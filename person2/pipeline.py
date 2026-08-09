@@ -192,6 +192,10 @@ def retrieve_question(state: Dict[str, Any]) -> Dict[str, Any]:
     # Prioritize Critical and Weak days
     target_days = [day for day, level in comp_map.items() if level in ["Critical", "Weak"] and day not in covered_days]
     
+    if not target_days and not comp_map:
+        # For a brand new session, just start with day 1 to completely bypass FAISS and heavy model loading!
+        target_days = [1]
+    
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
