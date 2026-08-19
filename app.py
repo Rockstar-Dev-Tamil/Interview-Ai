@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 # We need to import run_turn from person1
 # Using absolute imports relative to project root
 from person1.graph import run_turn
+from person2.linter import lint_code
+from schemas import CodeRunRequest
 
 import threading
 
@@ -68,6 +70,18 @@ async def get_candidates():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to load candidates."
+        )
+
+@app.post("/api/run")
+async def run_code(request: CodeRunRequest):
+    try:
+        errors = lint_code(request.language, request.code)
+        return {"errors": errors}
+    except Exception as e:
+        logger.error(f"Failed to lint code: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to validate code."
         )
 
 @app.post("/api/interview", response_model=InterviewResponse)

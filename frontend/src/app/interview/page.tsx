@@ -150,10 +150,18 @@ export default function InterviewPage() {
       const res = await sendAnswer(sessionId, messageText);
       
       const isProbe = res.reply.includes("Take your time") || res.reply.includes("explain your approach");
+      let nextCount = questionCount;
       if (!isProbe && !res.done) {
-        setQuestionCount((c) => c + 1);
+        nextCount += 1;
       }
 
+      if (nextCount >= 14) {
+        // Transition to IDE without showing Q14 and keep loading true
+        router.push("/coding");
+        return;
+      }
+
+      setQuestionCount(nextCount);
       setMessages((prev) => [...prev, { 
         role: "ai", 
         content: res.reply, 
@@ -166,13 +174,15 @@ export default function InterviewPage() {
       if (res.done) {
         localStorage.setItem("feedback", JSON.stringify(res.feedback));
         router.push("/feedback");
+        return;
       }
+      
+      setLoading(false);
     } catch (err) {
       console.error(err);
       setError("Failed to send your answer. Please try again.");
       setMessages((prev) => prev.slice(0, -1));
       setInput(messageText);
-    } finally {
       setLoading(false);
     }
   }, [loading, router]);

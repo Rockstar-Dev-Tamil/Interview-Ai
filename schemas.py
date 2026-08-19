@@ -41,3 +41,7 @@ class InterruptRequest(BaseModel):
 class InterruptResponse(BaseModel):
     interrupt: bool = Field(..., description="True if the AI should interrupt")
     reply: Optional[str] = Field(None, description="The interruption message")
+
+class CodeRunRequest(BaseModel):
+    language: str = Field(..., description="Programming language")
+    code: str = Field(..., description="Code to compile/run")

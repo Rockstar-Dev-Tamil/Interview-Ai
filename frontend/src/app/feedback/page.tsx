@@ -48,8 +48,8 @@ export default function FeedbackPage() {
     .filter((step) => step.trim().length > 0);
 
   return (
-    <div id="feedback-content" className="flex-1 overflow-y-auto bg-bg p-6 md:p-12 lg:px-20 py-12 print:p-0 print:m-0 print:h-screen print:w-screen print:overflow-hidden">
-      <div className="max-w-5xl mx-auto flex flex-col space-y-16 print:scale-[0.55] print:origin-top-left print:space-y-8">
+    <div id="feedback-content" className="flex-1 overflow-y-auto bg-bg p-6 md:p-12 lg:px-20 py-12 print:p-8 print:bg-white print:text-black">
+      <div className="max-w-5xl mx-auto flex flex-col space-y-16 print:space-y-6">
         
         {/* Hero Section */}
         <motion.div 
@@ -64,10 +64,10 @@ export default function FeedbackPage() {
               Interview Complete
             </span>
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-text">
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-text print:text-2xl print:text-black">
             Your Technical Interview Report
           </h1>
-          <p className="text-lg text-text-secondary max-w-2xl">
+          <p className="text-lg text-text-secondary max-w-2xl print:text-sm print:text-gray-600">
             You completed your personalized AI engineering assessment.
           </p>
         </motion.div>
@@ -77,12 +77,12 @@ export default function FeedbackPage() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
-          className="bg-surface border border-border rounded-xl p-6 md:p-8"
+          className="bg-surface border border-border rounded-xl p-6 md:p-8 print:p-4 print:border-gray-200"
         >
           <h2 className="text-xs font-medium text-text-tertiary uppercase tracking-wider mb-4">
             Overview
           </h2>
-          <p className="text-text text-base leading-relaxed whitespace-pre-wrap">
+          <p className="text-text text-base leading-relaxed whitespace-pre-wrap print:text-xs print:text-gray-800">
             {feedback.summary}
           </p>
         </motion.div>
@@ -107,7 +107,7 @@ export default function FeedbackPage() {
             <h2 className="text-xs font-medium text-text-tertiary uppercase tracking-wider">
               Areas to Improve
             </h2>
-            <div className="flex flex-col space-y-6">
+            <div className="flex flex-col space-y-6 print:grid print:grid-cols-2 print:gap-x-8 print:gap-y-4 print:space-y-0">
               {feedback.gaps.map((g, i) => (
                 <GapItem key={i} index={i + 1} gap={g} delay={0.4 + i * 0.1} />
               ))}
@@ -120,7 +120,7 @@ export default function FeedbackPage() {
           <h2 className="text-xs font-medium text-text-tertiary uppercase tracking-wider">
             Your Next Steps
           </h2>
-          <div className="flex flex-col space-y-3">
+          <div className="flex flex-col space-y-3 print:space-y-1">
             {nextStepsList.map((step, i) => (
               <NextStepItem key={i} index={i + 1} step={step} delay={0.6 + i * 0.1} />
             ))}
